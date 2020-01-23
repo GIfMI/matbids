@@ -99,14 +99,10 @@ classdef BIDSLayout < handle
             %%obj.validator_ = BIDSValidator('index_associated', arg_index_associated);
             obj.validate = logical(p.Results.validate);
             obj.absolute_paths = logical(p.Results.absolute_paths);
-            %obj.derivatives = {};
             obj.sources = cellify(p.Results.sources);
             obj.regex_search = logical(p.Results.regex_search);
             obj.metadata_index = MetadataIndex(obj);
             obj.config_filename = p.Results.config_filename;
-            % obj.files = {};
-            % obj.nodes = {};
-            % obj.entities = {};
             arg_ignore = cellify(p.Results.ignore);
             %%obj.ignore = '[os.path.abspath(os.path.join(obj.root, patt)) if isinstance(patt, six.string_types) else patt for patt in listify(ignore or [])]';
             obj.force_index = cellify(p.Results.force_index);
@@ -119,7 +115,6 @@ classdef BIDSLayout < handle
             obj.setup_file_validator_();
             
             % Set up configs
-            %obj.config = {};
             config = cellify(p.Results.config);
             if isempty(config)
                 config = 'bids';
@@ -131,8 +126,6 @@ classdef BIDSLayout < handle
             
             % Consolidate entities into master list. Note: no conflicts occur b/c
             % multiple entries with the same name all point to the same instance.
-%             for node = {obj.nodes{:}}
-%                 n = node{1};
             for idx = 1:numel(obj.nodes)
                 n = obj.nodes{idx};
                 obj.entities = update_struct(obj.entities, n.available_entities);
@@ -142,8 +135,6 @@ classdef BIDSLayout < handle
             derivatives = p.Results.derivatives;
             
             if ~(isempty(derivatives) || (islogical(derivatives) && ~derivatives))
-                
-                %if ~isempty(derivatives)
                 if islogical(derivatives)
                     if derivatives
                         derivatives = fullfile(obj.root, 'derivatives');
@@ -201,8 +192,8 @@ classdef BIDSLayout < handle
             % If either entities or config is specified, just pass through
             if isempty(entities) && isempty(config)
                 layouts = obj.get_layouts_in_scope_(scope);
-%                for ly_ = layouts
-%                     ly = ly_{1};
+                %                for ly_ = layouts
+                %                     ly = ly_{1};
                 for idx = 1:numel(layouts)
                     ly = layouts{idx};
                     config{end+1} = struct2cell(ly.config)';
@@ -258,8 +249,6 @@ classdef BIDSLayout < handle
                 dd_found = (exist(dd, 'file')==2);
             end
             
-%             for p_=fpath
-%                 p = p_{1};
             for idx=1:numel(fpath)
                 p = fpath{idx};
                 % a bit different then in pybids
@@ -278,9 +267,6 @@ classdef BIDSLayout < handle
                         % implemented!), get subdirs of pipelines and
                         % process them
                         subdirs = list_dir(p);
-%                         for sd_={subdirs{:}}
-%                             sd = sd_{1};
-%                            sd = fullfile(p, sd);
                         for idx=1:numel(subdirs)
                             sd = fullfile(p,subdirs{idx});
                             if check_for_description(sd)
@@ -300,8 +286,6 @@ classdef BIDSLayout < handle
                     'described in the BIDS-derivatives specification.']);
             end
             
-%             for deriv_ = deriv_dirs
-%                 deriv = deriv_{1};
             for idx = 1:numel(deriv_dirs)
                 deriv = deriv_dirs{idx};
                 dd = fullfile(deriv, 'dataset_description.json');
@@ -337,17 +321,11 @@ classdef BIDSLayout < handle
             % Consolidate all entities post-indexing. Note: no conflicts occur b/c
             % multiple entries with the same name all point to the same instance.
             derivs = fieldnames(obj.derivatives);
-%             derivs = {derivs{:}};
-%             for deriv_=derivs
-%                 deriv = deriv_{1};
-%                 obj.entities = update_struct(obj.entities, obj.derivatives.(deriv).entities);
-%             end
-            % faster
             for idx=1:numel(derivs)
                 obj.entities = update_struct(obj.entities, obj.derivatives.(derivs{idx}).entities);
             end
         end
- 
+        
         function bf = get_file(obj, filename, varargin)
             bf = {};
             % Returns the BIDSFile object with the specified path.
@@ -370,85 +348,20 @@ classdef BIDSLayout < handle
             
             layouts = obj.get_layouts_in_scope_(scope);
             filename = GetFullPath(path_join(obj.root, filename));
-
+            
             for idx = 1:numel(layouts)
                 ly = layouts{idx};
-%                 % with cell
-                 fnames = cellfun(@(x) x.fpath, ly.files, 'uni', false);
-% %                 % with vector
-%                  fnames = arrayfun(@(x) x.fpath, ly.files, 'uni', false);
-
-                 [idx ib] = ismember(fnames, filename);
-
+                fnames = cellfun(@(x) x.fpath, ly.files, 'uni', false);
+                [idx ib] = ismember(fnames, filename);
+                
                 if any(idx)
-                    % with cell
-                     bf = ly.files{idx};
-                     
-% % %                      % with vector
-% % %                      bf = ly.files(idx);
-                     break
+                    bf = ly.files{idx};
+                    break
                 end
             end
         end
         
-%         function bf = get_file(obj, filename, varargin)
-%             bf = {};
-%             % Returns the BIDSFile object with the specified path.
-%             %
-%             % Args:
-%             % filename (str): The path of the file to retrieve. Must be either
-%             % an absolute path, or relative to the root of this BIDSLayout.
-%             % scope (str, list): Scope of the search space. If passed, only
-%             % BIDSLayouts that match the specified scope will be
-%             % searched. See BIDSLayout docstring for valid values.
-%             %
-%             % Returns: A BIDSFile, or None if no match was found.
-%             p = inputParser;
-%             addRequired(p, 'filename',@(x)validateattributes(x,{'char', 'cell'},{'nonempty'}));
-%             addOptional(p, 'scope', 'all', @(x)validateattributes(x,{'cell', 'char'},{}));
-%             
-%             parse(p, filename, varargin{:});
-%             
-%             scope = cellify(p.Results.scope);
-%             
-%             layouts = obj.get_layouts_in_scope_(scope);
-%             filename = GetFullPath(path_join(obj.root, filename));
-% %             for ly_ = layouts
-% %                 ly = ly_{1};
-% 
-%             for idx = 1:numel(layouts)
-%                 ly = layouts{idx};
-% %                 % with cell
-% %                 hashes_array = cellfun(@(x) x.hash, ly.files);
-%                 
-%                 % with vector
-%                 hashes_array = arrayfun(@(x) x.hash, ly.files);
-% 
-%                 idx = find(hashes_array == string2hash(filename));
-%                 
-% %                 z=cell2mat(arrayfun(@(x) strcmp(filename, x.fname), cell2mat(ly.files), 'uni', false));
-% %                 idx = find(z)
-% 
-%                 if ~isempty(idx)
-% %                     % with cell
-% %                     bf = ly.files{idx};
-%                     
-%                     % with vector
-%                     bf = ly.files(idx);
-%                     break
-%                 end
-%                 %
-%                 % z=cell2mat(cellfun(@(x) strcmp(filename, x.fpath), ly.files, 'uni', false));
-%                 % idx = find(z);
-%                 % if ~isempty(idx)
-%                 % bf = ly.files{idx};
-%                 % break
-%                 % end
-%             end
-%         end
-        
         function results = get(obj, varargin)
-            % disp('***********************')
             % function get(obj, return_type='object', target=None, extensions=None,
             % scope='all', regex_search=False, defined_fields=None,
             % absolute_paths=None,
@@ -522,11 +435,6 @@ classdef BIDSLayout < handle
             absolute_paths = p.Results.absolute_paths;
             
             kwargs = p.Unmatched;
-            % Warn users still expecting pybids 0.6 behavior
-%             if isfield(kwargs, 'type')
-%                 error(['As of matbids 0.1, the "type" argument has been', ...
-%                     ' replaced with "suffix".']);
-%             end
             layouts = obj.get_layouts_in_scope_(scope);
             
             % Create concatenated file, node, and entity lists
@@ -535,51 +443,22 @@ classdef BIDSLayout < handle
             files = {};
             entities = {};
             nodes = {};
-%             for ly_= layouts
-%                 ly = ly_{1};
-
+            
             for idx = 1:numel(layouts)
                 ly = layouts{idx};
-                % with cell
-                 files = cat(2, {files, ly.files{:}});
-                
-                % with vector
-% % %                 files = horzcat(files, ly.files);
-                
+                files = cat(2, {files, ly.files{:}});
                 entities = update_struct(entities, ly.entities);
-                %entities = cat(2, {entities, l.entities{:}});
                 nodes = cat(2, {nodes, ly.nodes{:}});
             end
-
+            
             % Remove empty files
-             % with cell
-             % with increasing speed
-             %files = files(find(cellfun(@(x) ~isempty(x), files)));
-             %files = files(~cellfun(@ isempty, files));
             % much much faster!
             files = files(~cellfun('isempty', files));
-
-            % with vector
-% % %             %files = files(find(arrayfun(@(x) ~isempty(x), files)));
-
-%            ~cellfun('isempty', a)
-
+            
             % Separate entity kwargs from metadata kwargs
             ent_kwargs = struct;
             md_kwargs = struct;
             
-%             kwarg_names = fieldnames(kwargs);
-%             for k_ = {kwarg_names{:}}
-%                 k = k_{1};
-%                 v = kwargs.(k);
-%                 
-%                 if isfield(entities, k)
-%                     ent_kwargs.(k) = v;
-%                 else
-%                     md_kwargs.(k) = v;
-%                 end
-%             end
-
             % double as fast with more iterations
             kwarg_names = fieldnames(kwargs);
             for k = 1:numel(kwarg_names)
@@ -610,70 +489,35 @@ classdef BIDSLayout < handle
             % Search on entities
             filters = ent_kwargs;
             
-%             tic
-            % faster implementation
-%             for f = 1:numel(files)
-%                 f = files{f};
-%                 %disp(f.bfile.fpath)
-%                 %if f.bfile.matches(filters, extensions, regex_search)
-%                 if f.bfile.matches(filters, regex_search)
-%                     results{end+1} = f.bfile;
-%                 end
-%             end
-            % faster implementation with hashes
-            %results = [];
-
             for f = 1:numel(files)
-                 % with cell
-                 f = files{f};
-                
-                % with vector
-% % %                 f = files(f);
+                f = files{f};
                 if f.matches(filters, regex_search)
-                    % with cell
-                     results{end+1} = f;            
-                     
-%                     % with vector
-%                     results = [results f];
-%                     
+                    results{end+1} = f;
                 end
             end
-%             toc
-            
-            
-            %              tic
-            %              for f_ = {files{:}}
-            %                  f = f_{1};
-            %                  if f.bfile.matches(filters, extensions, regex_search)
-            %                      if f.bfile.matches(filters, regex_search)
-            %                          results{end+1} = f.bfile;
-            %                      end
-            %                  end
-            %                  toc
-            
             
             % Search on metadata
             if ~any(strcmp({'dir', 'id'}, return_type))
                 if numel(fieldnames(md_kwargs))>0
-
                     results = cellfun(@(x) x.fpath, results, 'uni', false);
                     md_kwargs = reshape([fieldnames(md_kwargs) struct2cell(md_kwargs)]',2*numel(fieldnames(md_kwargs)), []);
-                    %md_kwargs = {md_kwargs{:}};
                     
+                    %results = obj.metadata_index.search('defined_fields', defined_fields, md_kwargs{:});
                     results = obj.metadata_index.search('files', results, 'defined_fields', defined_fields, md_kwargs{:});
                     
-                    fnames = cellfun(@(x) x.fname, files, 'uni', false);
+                    fnames = cellfun(@(x) x.fpath, files, 'uni', false);
                     
                     for r_=1:numel(results)
-                        r = results{r_};
+                        r = path_join(obj.root, results{r_});
+% % % % %                         r = results{r_};
                         idx = find(cellfun(@(x) strcmp(r, x) , fnames));
-                        
-                       results{r_} = files{idx}.bfile;
+
+                        results{r_} = files{idx};
+                        %results{r_} = files{idx}.bfile;
                     end
                 end
             end
-            
-            
+
             % % Convert to relative paths if needed
             if isempty(absolute_paths) % can be overloaded as option to .get
                 absolute_paths = obj.absolute_paths;
@@ -681,8 +525,6 @@ classdef BIDSLayout < handle
             
             if ~absolute_paths
                 i = 1;
-%                 for f_=results
-%                     f = f_{1};
                 for idx=1:numel(results)
                     f = results{idx};
                     f = copy(f); % deepcopy
@@ -691,6 +533,7 @@ classdef BIDSLayout < handle
                     i=i+1;
                 end
             end
+            %cellfun(@(x) disp(x.fpath), results);
             
             
             if strcmp('file', return_type)
@@ -728,7 +571,6 @@ classdef BIDSLayout < handle
                     end
                     
                     results = cellfun(@(x) x.fpath, results, 'uni', false);
-                    %cellfun(@(x) disp(x), results, 'uni', false)
                     idx = find(cell2mat(cellfun(@(x) regexp(x, template), results, 'uni', false)));
                     
                     results = results(find(idx));
@@ -774,8 +616,7 @@ classdef BIDSLayout < handle
                     class(obj), ent);
             end
         end
-        
-        
+
         function results = get_metadata(obj, fpath, varargin)
             %          """Return metadata found in JSON sidecars for the specified file.
             %
@@ -866,7 +707,14 @@ classdef BIDSLayout < handle
             
             parse(p, fpath, varargin{:});
             
-            fpath = abspath(p.Results.fpath);
+            % fpath = abspath(p.Results.fpath);
+            % fpath = path_join(obj.root, fpath);
+            
+            if ~isabs(fpath)
+                fpath = fullfile(obj.root, fpath);
+            end
+            
+            
             return_type = p.Results.return_type;
             strict = p.Results.strict;
             all_ = p.Results.all_;
@@ -891,8 +739,7 @@ classdef BIDSLayout < handle
             % Collect matches for all entities
             entities = struct;
             ents = fieldnames(obj.entities);
-%             for e_={ents{:}}
-%                 e = e_{1};
+            
             for idx=1:numel(ents)
                 e = ents{idx};
                 ent = obj.entities.(e);
@@ -904,8 +751,8 @@ classdef BIDSLayout < handle
             
             % Remove any entities we want to ignore when strict matching is on
             if strict && ~isempty(ignore_strict_entities)
-%                 for k_= ignore_strict_entities
-%                     k = k_{1};
+                %                 for k_= ignore_strict_entities
+                %                     k = k_{1};
                 for idx = 1:numel(ignore_strict_entities)
                     k = ignore_strict_entities{idx};
                     entities = rmfield(entities, k);
@@ -916,37 +763,21 @@ classdef BIDSLayout < handle
                 entities = rmfield(entities, 'extension');
             end
             
-            %             entities
-            %             kwargs
-            %             disp('------------------------')
             %results = obj.get('return_type', 'object', 'extension', 'tsv')
             results = obj.get('return_type', 'object', kwargs);
-            %cellfun(@(x) disp(x.fpath), results)
             
             % Make a dictionary of directories --> contained files
             folders = containers.Map('KeyType', 'char', 'ValueType', 'any');
             
-%             for f_=results
-%                 f= f_{1};
             for idx=1:numel(results)
                 f= results{idx};
-                %fprintf('%s -> %s\n', f.dirname, f.filename)
                 if ~folders.isKey(f.dirname)
                     folders(f.dirname) = {};
-                else
-                    % disp('key found')
                 end
                 ff = folders(f.dirname);
                 ff{end+1} = f;
                 folders(f.dirname) = ff;
             end
-            %             disp(' ');
-            %             for kk=folders.keys
-            %                 fprintf('Folder: %s\n', kk{1});
-            %                  for ff=folders(kk{1})
-            %                      fprintf('    File: %s\n', ff{1}.filename);
-            %                  end
-            %             end
             
             % Build list of candidate directories to check
             search_paths = {};
@@ -972,28 +803,21 @@ classdef BIDSLayout < handle
                 search_paths = search_paths(find(cellfun(@(x) ~isempty(folders(x)), search_paths )));
             end
             
-            %fpath
-            %             cellfun(@ disp, search_paths);
             
             function cnt = count_matches(f)
                 % Count the number of entities shared with the passed file
-                %fprintf('   File input   : %s\n', f.filename);
                 cnt = [];
                 f_ents = f.entities;
                 fentities = f.entities;
-                %                                  printstruct(fentities)
-                %                                  printstruct(entities)
                 keys = intersect(fieldnames(f_ents), fieldnames(entities));
-                %                 fprintf('      %s\n', keys{:})
+                
                 shared = numel(keys);
-                %                 disp(' ');
+                
                 % Convert to string, can be more elegant
                 equal_vals = 0;
-%                 for key_={keys{:}}
-%                     key = key_{1};
+                
                 for idx=1:numel(keys)
                     key = keys{idx};
-                    %                     disp('key')
                     if ischar(f_ents.(key))
                         value1 = f_ents.(key);
                     elseif isnumeric(f_ents.(key))
@@ -1009,25 +833,19 @@ classdef BIDSLayout < handle
                     else
                         error('Wrong input type');
                     end
-                    %                     disp(value1)
-                    %                     disp(value2)
-                    %                     fprintf('      Key: %s | value 1: %s | value 2: %s\n', key, value1, value2);
+                    
                     equal_vals = equal_vals + strcmp(value1, value2);
                 end
                 
                 cnt = [shared, equal_vals];
-                %disp(sprintf('count: %d ', cnt));
             end
             matches = {};
             
-%             for sp_ = search_paths
-%                 sp = sp_{1};
             for idx = 1:numel(search_paths)
                 sp = search_paths{idx};
-                %                 fprintf('Search path: %s\n', sp);
+                
                 % Sort by number of matching entities. Also store number of
                 % common entities, for filtering when strict=True.
-                
                 folder_sp = folders(sp);
                 num_ents=cellfun(@(f) {f, count_matches(f)}, folder_sp, 'uni', false);
                 
@@ -1035,21 +853,13 @@ classdef BIDSLayout < handle
                 % entities does not equal number of matching entities).
                 %
                 if strict
-                    %idx = cellfun(@(x) x{2}(1)==x{2}(2), num_ents);
                     num_ents = num_ents(cellfun(@(x) x{2}(1)==x{2}(2), num_ents));
                 end
-                %
-                % cellfun(@ disp, num_ents )
-                %cellfun(@(x) fprintf('%s %d %d\n', x{1}.fpath, x{2}(1), x{2}(2)), num_ents )
-                %cellfun(@(x) fprintf('', , num_ents )
-                %cellfun(@(x) disp(x{2}), num_ents )
                 
                 [~, idx] = sort(cell2mat(cellfun(@(x) x{2}(2), num_ents, 'uni', false)), 'descend');
                 num_ents = num_ents(idx);
                 
                 if ~isempty(num_ents)
-%                     for f_match_=num_ents
-%                         f_match = f_match_{1};
                     for idx=1:numel(num_ents)
                         f_match = num_ents{idx};
                         matches{end+1} = f_match{1};
@@ -1102,14 +912,10 @@ classdef BIDSLayout < handle
                 layouts = obj.get_layouts_in_scope_(scope);
                 %path_patterns = {}; % redundant
                 seen_configs = {};
-%                 for l_=layouts
-%                     l = l_{1};
                 for idx=1:numel(layouts)
-                    l = layouts{idx}
+                    l = layouts{idx};
                     
                     cfgs = fieldnames(l.config);
-%                     for c_={cfgs{:}}
-%                         c = l.config.(c_{1});
                     for idx=1:numel(cfgs)
                         c = l.config.(cfgs{idx});
                         if any(cellfun(@(x) x==c, seen_configs))
@@ -1182,16 +988,12 @@ classdef BIDSLayout < handle
                 layouts = obj.get_layouts_in_scope_('all');
                 %path_patterns = {}; % redundant
                 seen_configs = {};
-%                 for l_=layouts
-%                     l = l_{1};
                 for idx=1:numel(layouts)
-                    l = layouts{idx};
+                    ly = layouts{idx};
                     
-                    cfgs = fieldnames(l.config);
+                    cfgs = fieldnames(ly.config);
                     for c_={cfgs{:}}
-                        c = l.config.(c_{1});
-%                     for idx=1:numel(cfgs)
-%                         c = l.config.(cfgs{idx});
+                        c = ly.config.(c_{1});
                         if any(cellfun(@(x) x==c, seen_configs))
                             continue;
                         end
@@ -1203,9 +1005,6 @@ classdef BIDSLayout < handle
             
             files_ = obj.get('return_type', 'object', kwargs{:});
             
-            %             cellfun(@(x) disp(x.fpath), files_)
-            %             disp(' ')
-            %             cellfun(@(x) disp(x.fpath), files)
             
             if ~isempty(files)
                 % Workaround: intersect does not work with object cell
@@ -1216,8 +1015,6 @@ classdef BIDSLayout < handle
                 files_ = files_(idx_);
             end
             
-%             for f_= files_
-%                 f = f_{1};
             for idx = 1:numel(files_)
                 f = files_{idx};
                 % bug: should not use obj.root but root
@@ -1353,8 +1150,6 @@ classdef BIDSLayout < handle
         function setup_file_validator_(obj)
             % Derivatives get special handling; they shouldn't be indexed normally
             if ~isempty(obj.force_index)
-%                 for entry_ = obj.force_index
-%                     entry = entry_{1};
                 for idx = 1:numel(obj.force_index)
                     entry = obj.force_index{idx};
                     if ischar(entry)
@@ -1416,9 +1211,6 @@ classdef BIDSLayout < handle
             end
             
             derivs = fieldnames(obj.derivatives);
-%            derivs = {derivs{:}};
-%             for deriv_=derivs
-%                 deriv = deriv_{1};
             for idx=1:numel(derivs)
                 deriv = derivs{idx};
                 if any(strcmp(scope, 'all')) || ...

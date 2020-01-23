@@ -20,20 +20,18 @@ classdef BIDSFile < matlab.mixin.Copyable
     properties (SetAccess = private)
         filename = ''
         dirname = ''
-
+        
         entities = struct
         parent = []
         layout = []
     end
     
-    properties 
+    properties
         fpath = ''
-        %hash = [];
     end
     
     methods
         function disp(obj)
-            %fprintf('Class: BIDSFile | Path: %s | Dirname: %s | Filename: %s | Entities: %d\n', obj.fpath, obj.filename, obj.dirname, numel(obj.entities));
             fprintf('Class: BIDSFile | Path: %s', obj.fpath);
             fns = fieldnames(obj.entities);
             
@@ -51,14 +49,6 @@ classdef BIDSFile < matlab.mixin.Copyable
             fprintf('\n');
         end
         
-%         function obj = set.fpath(obj, fpath)
-%             obj.fpath =fpath;
-%             [obj.dirname, obj.filename, ext] = fileparts(obj.fpath);
-%             if ~isempty(ext)
-%                 obj.filename = [obj.filename, ext];
-%             end
-%         end
-
         % Constructor
         function obj = BIDSFile(filename, varargin)
             %         Args:
@@ -79,8 +69,6 @@ classdef BIDSFile < matlab.mixin.Copyable
             end
             
             obj.parent = p.Results.parent;
-            %obj.entities = struct;
-            %obj.hash = string2hash(obj.fpath);
         end
         
         function ent = get_entity(obj, entity)
@@ -123,7 +111,6 @@ classdef BIDSFile < matlab.mixin.Copyable
         
         function my_metadata = metadata(obj)
             try
-                %my_metadata = obj.layout.get_metadata(obj.fpath);
                 my_metadata = obj.layout.get_metadata(obj);
             catch
                 my_metadata = [];
@@ -137,28 +124,28 @@ classdef BIDSFile < matlab.mixin.Copyable
                 my_layout = [];
             end
         end
-
- 
- function ismatch = matches(obj, entities, regex_search)
- %function ismatch = matches(obj, varargin)
+        
+        
+        function ismatch = matches(obj, entities, regex_search)
+            %function ismatch = matches(obj, varargin)
             % no input parameter checking with inputParser due to overhead
             % fixed number of input arguments to limit overhead
-%            tic
-%             defaultsvals = {[], false};
-%             defaultsval{1:nargin} = varargin;
+            %            tic
+            %             defaultsvals = {[], false};
+            %             defaultsval{1:nargin} = varargin;
             
             
-%             if nargin
-%                 entities = varargin{1};
-%             else
-%                 entities = [];
-%             end
-%             
-%             if nargin>=2
-%                 regex_search = varargin{2};
-%             else
-%                 regex_search = false;
-%             end
+            %             if nargin
+            %                 entities = varargin{1};
+            %             else
+            %                 entities = [];
+            %             end
+            %
+            %             if nargin>=2
+            %                 regex_search = varargin{2};
+            %             else
+            %                 regex_search = false;
+            %             end
             
             fns = fieldnames(entities);
             
@@ -166,7 +153,7 @@ classdef BIDSFile < matlab.mixin.Copyable
                 ismatch = true;
                 return
             end
-                
+            
             %for i=fns' is slower than indexing
             for idx=1:numel(fns)
                 name = fns{idx};
@@ -189,68 +176,27 @@ classdef BIDSFile < matlab.mixin.Copyable
                 % array size !!!!!!!!!!!!
                 % at least twice as fast as the 2-line cellfun/strjoin
                 % implementation
-                 patt = make_patt(val{1}, regex_search);
-                 if numel(val)>1
-                     for idx2=1:numel(val)
-                         patt = [patt, '|', make_patt(val{idx2}, regex_search)];
-                     end
-                 end
-
-                %  1/3 faster as with cellfun (?)
-                %patt = {};
-%                 patt = cell(1, numel(val));
-%                 for idx2=1:numel(val)
-%                      patt{idx2} = make_patt(val{idx2}, regex_search);
-%                 end
-%                 patt = sprintf('%s|', patt{:});
-%                 patt(end) = [];
-
+                patt = make_patt(val{1}, regex_search);
+                if numel(val)>1
+                    for idx2=1:numel(val)
+                        patt = [patt, '|', make_patt(val{idx2}, regex_search)];
+                    end
+                end
                 
-                %  1/3 faster as with cellfun (?)
-                %patt = {};
-                %patt = cell(1, numel(val));
-%                      for idx2=1:numel(val)
-%                          patt{idx2} = make_patt(val{idx2}, regex_search);
-%                      end
-%                  
-%                  patt = strjoin(patt, '|');
-                
-
-                  %  almost the same as below !!!!!!!!!!!!!!!!!!!
-
-%                  patt = make_patt(val{1}, regex_search);
-%                  if numel(val)>1
-%                      for idx2=1:numel(val)
-%                          patt = strcat(patt, '|', make_patt(val{idx2}, regex_search));
-%                      end
-%                  end
-
-               
-                 
-%                 %  1/3 faster as with cellfun (?)
-%                  epatt=cell(1,numel(val));
-%                  for idx2=1:numel(val)
-%                      epatt{idx2} = make_patt(val{idx2}, regex_search);
-%                  end
-%                  patt = strjoin(epatt, '|');
-                
-%                  ent_patts = cellfun(@(x) make_patt(x, regex_search), val, 'uni', false);
-%                  patt = strjoin(ent_patts, '|');
-
                 if isempty(regexp(castto(obj.entities.(name), 'char'), patt, 'once'))
                     ismatch = false;
                     return
                 end
             end
             ismatch = true;
-       end
-
+        end
+        
         
         function copyfile(obj, path_patterns, varargin)
             % different name as in pybids to allow inheritance from
             % matlab.mixin.Copyable
             % Copy the contents of a file to a new location.
-            % Seems to be a bug in pybids where new_filename 
+            % Seems to be a bug in pybids where new_filename
             % Mainly rewritten
             %
             % Args:
@@ -267,7 +213,7 @@ classdef BIDSFile < matlab.mixin.Copyable
             %             'skip' does nothing
             %             'overwrite': overwrites the existing file
             %             'append': adds  a suffix to each file copy, starting with 1
-        
+            
             p = inputParser;
             
             conflict_vals = {'fail', 'skip', 'overwrite', 'append'};
@@ -276,34 +222,34 @@ classdef BIDSFile < matlab.mixin.Copyable
             addOptional(p, 'root', '', @(x)validateattributes(x,{'char'},{}));
             addOptional(p, 'conflicts', 'fail', @(x) any(validatestring(x,conflict_vals)));
             parse(p, path_patterns, varargin{:});
-
-    %     Args:
-    %         path (str): Destination path of the desired contents.
-    %         contents (str): Raw text or binary encoded string of contents to write
-    %             to the new path.
-    %         link_to (str): Optional path with which to create a symbolic link to.
-    %             Used as an alternative to and takes priority over the contents
-    %             argument.UNSUPPORTED
-    %         content_mode (str): Either 'text' or 'binary' to indicate the writing
-    %             mode for the new file. Only relevant if contents is provided.
-    %         root (str): Optional root directory that all patterns are relative
-    %             to. Defaults to current working directory.
-    %         conflicts (str): One of 'fail', 'skip', 'overwrite', or 'append'
-    %             that defines the desired action when the output path already
-    %             exists. 'fail' raises an exception; 'skip' does nothing;
-    %             'overwrite' overwrites the existing file; 'append' adds  a suffix
-    %             to each file copy, starting with 1. Default is 'fail'.
-    %     """
-    
+            
+            %     Args:
+            %         path (str): Destination path of the desired contents.
+            %         contents (str): Raw text or binary encoded string of contents to write
+            %             to the new path.
+            %         link_to (str): Optional path with which to create a symbolic link to.
+            %             Used as an alternative to and takes priority over the contents
+            %             argument.UNSUPPORTED
+            %         content_mode (str): Either 'text' or 'binary' to indicate the writing
+            %             mode for the new file. Only relevant if contents is provided.
+            %         root (str): Optional root directory that all patterns are relative
+            %             to. Defaults to current working directory.
+            %         conflicts (str): One of 'fail', 'skip', 'overwrite', or 'append'
+            %             that defines the desired action when the output path already
+            %             exists. 'fail' raises an exception; 'skip' does nothing;
+            %             'overwrite' overwrites the existing file; 'append' adds  a suffix
+            %             to each file copy, starting with 1. Default is 'fail'.
+            %     """
+            
             symbolic_link = p.Results.symbolic_link;
             root = p.Results.root;
             conflicts = p.Results.conflicts;
-          
+            
             new_filename = build_path(obj.entities, path_patterns);
             if isempty(new_filename)
                 return
             end
-                        
+            
             if isabs(obj.fpath)
                 fpath = obj.fpath;
             else
@@ -326,9 +272,9 @@ classdef BIDSFile < matlab.mixin.Copyable
                 link_to = '';
             end
             
-              write_contents_to_file(new_filename, contents, ...
-                  'link_to', link_to, 'content_mode', 'text', ...
-                  'root', root,'conflicts', conflicts);
+            write_contents_to_file(new_filename, contents, ...
+                'link_to', link_to, 'content_mode', 'text', ...
+                'root', root,'conflicts', conflicts);
         end
     end
 end

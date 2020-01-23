@@ -21,7 +21,7 @@ classdef BIDSRootNode < BIDSNode
             
             %--- disable parser temporarily to check functionality, keep it
             % to the parent class
-            %parse(p, fpath, config, layout, varargin{:});
+            parse(p, fpath, config, layout, varargin{:});
             force_index = true;
             %---
             obj@BIDSNode(fpath, config, layout, {}, {}, force_index);

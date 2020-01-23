@@ -78,7 +78,7 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
             addOptional(p, 'root', {}, @(x)validateattributes(x,{'cell', 'BIDSNode'},{}));
             addOptional(p, 'parent', {}, @(x)validateattributes(x,{'cell', 'BIDSNode'},{}));
             addOptional(p, 'force_index', false, @(x)validateattributes(x,{'logical', 'double'},{'nonempty'}));
-
+            
             parse(p, fpath, config, varargin{:});
             
             obj.fpath = p.Results.fpath;
@@ -95,14 +95,7 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
             %if iscell(obj.parent), obj.parent = {}; end
             
             obj.force_index = p.Results.force_index;
-
-            % obj.entities = {};
-            % obj.available_entities = struct;
-            % obj.children = {};
-            % obj.files = [];
-            % obj.variables = [];
-
-            %obj.hash = string2hash(obj.abs_path());
+            
             
             % Workaround to deal with fact that child classes cannot
             % overwrite inherited properties before object creation in
@@ -156,7 +149,7 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
     end
     
     methods
-    
+        
         function abs_path = get.abs_path(obj)
             abs_path = path_join(obj.root_path, obj.fpath);
         end
@@ -183,27 +176,17 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
         
         function index(obj)
             % Index all files/directories below the current BIDSNode. """
-            %fprintf('-- Indexing path %s\n', obj.fpath);
-            %disp(['Indexing path ', obj.fpath])
-           
+            
             [dirnames, filenames] = list_dir(obj.fpath);
             
-            % If layout configuration file exists, delete it
-           %fnames = arrayfun(@(x) x.fpath, ly.files, 'uni', false);
-
-           %
-           [comp ~] = ismember(filenames, obj.layout.config_filename);
-
-           % fastest
-           comp = cellfun(@(x) strcmp(x, obj.layout.config_filename), filenames);
+            %
+            [comp ~] = ismember(filenames, obj.layout.config_filename);
+            
+            % fastest
+            comp = cellfun(@(x) strcmp(x, obj.layout.config_filename), filenames);
             
             filenames(comp)=[];
-%             if any(comp)
-%                 filenames(comp)=[];
-%             end
             
-%             for field={filenames{:}} % force being a column array
-%                 f=field{1};
             for f=1:numel(filenames)
                 f=filenames{f};
                 abs_fn = fullfile(obj.fpath, f);
@@ -214,26 +197,16 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
                     continue
                 end
                 bf = BIDSFile(abs_fn, obj);
-
+                
                 % Extract entity values
                 match_vals = struct;
-%                 fns = fieldnames(obj.available_entities);
-%                 for e=1:numel(fns)
-%                     e=obj.available_entities.(fns{e});
-
-                % fastest
+                
                 entities_ = struct2cell(obj.available_entities);
                 for e=1:numel(entities_)
                     e=entities_{e};
-%                    
-%                 entities_ = struct2cell(obj.available_entities);
-%                 for ent={entities_{:}}
-%                     e=ent{1};
-
                     m = e.match_file(bf);
                     
-                    % fastest
-                    if ~isempty(m) 
+                    if ~isempty(m)
                         match_vals.(e.name) = {e, m};
                     else
                         if e.mandatory
@@ -241,24 +214,7 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
                         end
                     end
                     
-%                     if isempty(m)
-%                         if e.mandatory
-%                             break
-%                         end
-%                     else
-%                         match_vals.(e.name) = {e, m};
-%                     end
-                    
-                   
-%                     if isempty(m) && e.mandatory
-%                         break
-%                     end
-%                     
-%                     if ~isempty(m)
-%                         match_vals.(e.name) = {e, m};
-%                     end
                 end
-                %               fprintf('\n');
                 
                 fns = fieldnames(match_vals);
                 if ~isempty(fns)
@@ -271,12 +227,7 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
                     end
                     obj.files{end+1}= bf;
                     % Also add to the Layout's master list
-                    
-                     % with cell
-                     obj.layout.files{end+1} = bf;
-                     
-% % %                     % with vector
-% % %                     obj.layout.files =  [obj.layout.files bf];
+                    obj.layout.files{end+1} = bf;
                 end
             end % filenames
             
@@ -288,8 +239,6 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
             
             for d=1:numel(dirnames)
                 d=dirnames{d};
-%             for dirname={dirnames{:}} % force being a column array
-%                 d=dirname{1};
                 
                 d = fullfile(obj.fpath, d);
                 %disp(['   Processing dir ', d]);
@@ -327,18 +276,16 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
                 child_class = obj.get_child_class(d);
                 % TODO: filter the config files based on include/exclude rules
                 
-% % % % % %             addRequired(p, 'fpath',@(x)validateattributes(x,{'char'},{'nonempty'}));
-% % % % % %             addRequired(p, 'config', @(x)validateattributes(x,{'cell', 'Config'},{'nonempty'}));
-% % % % % %             addOptional(p, 'layout', {});
-% % % % % %             addOptional(p, 'root', {}, @(x)validateattributes(x,{'BIDSNode', 'cell'},{}));
-% % % % % %             addOptional(p, 'parent', {}, @(x)validateattributes(x,{'BIDSNode' 'cell'},{}));
-% % % % % %             addOptional(p, 'force_index', false, @(x)validateattributes(x,{'logical', 'double'},{'nonempty'}));
-
-            
-%                child = child_class(d, config_list, 'root', root_node, 'parent', obj, 'force_index', obj.force_index);
-
+                % % % % % %             addRequired(p, 'fpath',@(x)validateattributes(x,{'char'},{'nonempty'}));
+                % % % % % %             addRequired(p, 'config', @(x)validateattributes(x,{'cell', 'Config'},{'nonempty'}));
+                % % % % % %             addOptional(p, 'layout', {});
+                % % % % % %             addOptional(p, 'root', {}, @(x)validateattributes(x,{'BIDSNode', 'cell'},{}));
+                % % % % % %             addOptional(p, 'parent', {}, @(x)validateattributes(x,{'BIDSNode' 'cell'},{}));
+                % % % % % %             addOptional(p, 'force_index', false, @(x)validateattributes(x,{'logical', 'double'},{'nonempty'}));
+                
+                
+                %                child = child_class(d, config_list, 'root', root_node, 'parent', obj, 'force_index', obj.force_index);
                 child = child_class(d, obj.config, obj.layout, root_node, obj, obj.force_index);
-%%%                disp(child);
                 
                 if obj.force_index% or valid_dir:
                     obj.children{end+1} = child;
@@ -360,14 +307,14 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
         function extract_entities(obj)
             obj.entities = struct;
             
-%             for e = 1:numel(obj.entities_)
-%                 e = obj.entities_{e};
-%                 
-%                 tokens = regexp(obj.fpath, obj.available_entities.(e).pattern, 'tokens');
-%                 if ~isempty(tokens)
-%                     obj.entities.(e) = tokens{1}{1};
-%                 end
-%             end
+            %             for e = 1:numel(obj.entities_)
+            %                 e = obj.entities_{e};
+            %
+            %                 tokens = regexp(obj.fpath, obj.available_entities.(e).pattern, 'tokens');
+            %                 if ~isempty(tokens)
+            %                     obj.entities.(e) = tokens{1}{1};
+            %                 end
+            %             end
             for ent = obj.entities_
                 tokens = regexp(obj.fpath, obj.available_entities.(ent{1}).pattern, 'tokens');
                 if ~isempty(tokens)
@@ -393,10 +340,7 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
             
             for ce = cellify(obj.child_entity_)
                 child_ent = ce{1};
-            
-%             child_entity_ = cellify(obj.child_entity_);
-%             for ce = 1:numel(child_entity_)
-%                 child_ent = child_entity_{ce};
+                
                 template = obj.available_entities.(child_ent).directory;
                 if isempty(template)
                     class_name = str2func(BIDSNode);
@@ -408,8 +352,7 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
                 template = [root_path_esc,template];
                 
                 to_rep = regexp(template, '{(.*?)}', 'tokens');
-%                 for ent = to_rep
-%                     e = ent{1}{1};
+                
                 for e = 1:numel(to_rep)
                     e = to_rep{e}{1};
                     patt = obj.available_entities.(e).pattern;

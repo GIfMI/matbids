@@ -50,9 +50,17 @@ classdef MetadataIndex < handle
             end
             
             % check if already indexed
-            [fileidx, ~] = ismember(obj.file_index_fnames, f.fpath);
+% % % % %             fpath = f.fpath;
+            if ~obj.layout.absolute_paths
+                fpath = relativepath(f.fpath, obj.layout.root);
+            else
+                fpath = f.fpath;
+            end
+            
+            [fileidx, ~] = ismember(obj.file_index_fnames, fpath);
             
             if any(fileidx) && ~ overwrite
+                disp('already indexed')
                 return
             end
             
@@ -63,8 +71,8 @@ classdef MetadataIndex < handle
             
             % This should be a unique index
             fileidx = find(fileidx);
-
-            md = obj.get_metadata_(f.fpath);
+            
+            md = obj.get_metadata_(fpath);
             fns = fieldnames(md);
             
             for fnidx = 1:numel(fns)
@@ -72,20 +80,20 @@ classdef MetadataIndex < handle
                 md_val = md.(md_key);
                 
                 if ~isfield(obj.key_index, md_key)
-                    % fastest with struct array
-% % %                     obj.key_index.(md_key) = {};
                     obj.key_index.(md_key) = struct;
                     idx = 1;
                 else
                     idx = numel(obj.key_index.(md_key)) + 1;
                 end
                 
-% % %                 obj.key_index.(md_key){end+1}.bfile =  f;
-% % %                 obj.key_index.(md_key){end}.fpath =  f.fpath;
-% % %                 obj.key_index.(md_key){end}.md_val =  md_val;
-
+%                 if ~obj.layout.absolute_paths
+%                     fpath = relativepath(f.fpath, obj.layout.root);
+%                 else
+%                     fpath = f.fpath;
+%                 end
+                    
                 obj.key_index.(md_key)(idx).bfile =  f;
-                obj.key_index.(md_key)(idx).fpath =  f.fpath;
+                obj.key_index.(md_key)(idx).fpath =  fpath;
                 obj.key_index.(md_key)(idx).md_val =  md_val;
                 
                 if isempty(fileidx)
@@ -94,7 +102,7 @@ classdef MetadataIndex < handle
                     str.md.(md_key) = md_val;
                     
                     obj.file_index{fileidx} =  str;
-                    obj.file_index_fnames{fileidx} = f.fpath;
+                    obj.file_index_fnames{fileidx} = fpath;
                     
                 else
                     % found in file index, update md_key
@@ -132,11 +140,24 @@ classdef MetadataIndex < handle
                 return;
             end
             
-            % The calling function must take care of absolute paths
+
             for json_file_path_= potential_jsons(end:-1:1)
                 json_file_path = json_file_path_{1};
+
+                % Make path absolute to be able to load (deal with
+                % absolute_paths = false
+                % Adds a bit of overhead but is crucial
+                % json_file_path = path_join(obj.layout.root, json_file_path);
                 
-                if exist(json_file_path, 'file') == 2
+% % % % %                  json_file_path_full = json_file_path;
+                 
+                if ~isabs(json_file_path)
+                    json_file_path_full = fullfile(obj.layout.root, json_file_path);
+                else
+                    json_file_path_full = json_file_path;
+                end
+                
+                if exist(json_file_path_full, 'file') == 2
                     % ADDED: caching of json data to avoid multiple
                     % jsonread call
                     % Seems that for a limited amount of json files the
@@ -147,10 +168,9 @@ classdef MetadataIndex < handle
                     % fastest with internal and logical indexing
                     [fileidx, ~] = ismember(obj.json_index_fnames, json_file_path);
                     if ~any(fileidx)
-                        %fileidx = numel(obj.json_index)+1;
                         fileidx = [fileidx true];
                         obj.json_index{fileidx}.fpath = json_file_path;
-                        obj.json_index{fileidx}.json = jsonread(json_file_path);
+                        obj.json_index{fileidx}.json = jsonread(json_file_path_full);
                         obj.json_index_fnames{fileidx} = json_file_path;
                     end
                     
@@ -176,7 +196,7 @@ classdef MetadataIndex < handle
             %       metadata.
             %
             % Returns: A list of filenames that match all constraints.
-            
+
             p = inputParser;
             p.KeepUnmatched = true;
             addParameter(p, 'files', {}, @(x)validateattributes(x,{'cell', 'char'},{}));
@@ -195,17 +215,17 @@ classdef MetadataIndex < handle
             
             files = cellify(p.Results.files);
             
+            
             % If no list of files is passed, use all files in layout
             if isempty(files)
-                files = cellfun(@(x) x.fname  , obj.layout.files, 'uni', false);
+                files = cellfun(@(x) x.fpath  , obj.layout.files, 'uni', false);
             end
+
             
             % Index metadata for any previously unseen files
             
-            %             for f_=files
-            %                 f = f_{1};
             t= [];
-
+            
             for idx=1:numel(files)
                 f = files{idx};
                 tic
@@ -218,26 +238,23 @@ classdef MetadataIndex < handle
             
             % Get file intersection of all kwargs keys--this is fast
             filesets = {};
-            %             for key_=all_keys{:}
-            %                 key = key_{1};
-
+            
             for idx = 1:numel(all_keys)
                 key = all_keys{idx};
                 if isempty(filesets)
-                    % no big difference overall, but struct array is faster
-                    % in this loop
-% % %                     %filesets = cellfun(@(x) x.bfile.fpath, obj.key_index.(key), 'uni', false);
-% % %                     filesets = cellfun(@(x) x.fpath, obj.key_index.(key), 'uni', false);
                     filesets = {obj.key_index.(key).fpath};
                 else
-% % %                     %filesets = intersect(filesets, cellfun(@(x) x.bfile.fpath, obj.key_index.(key), 'uni', false));
-% % %                     filesets = intersect(filesets, cellfun(@(x) x.fpath, obj.key_index.(key), 'uni', false));
-                     filesets = intersect(filesets, {obj.key_index.(key).fpath});
+                    filesets = intersect(filesets, {obj.key_index.(key).fpath});
                 end
             end
-
+            
             matches = filesets; % same as pybids
             
+            if ~obj.layout.absolute_paths
+                files = cellfun(@(x) relativepath(x, obj.layout.root), files, 'uni', false);
+            end
+            
+
             if ~isempty(files)
                 matches = intersect(matches, files);
             end
@@ -284,13 +301,11 @@ classdef MetadataIndex < handle
             
             % Serially check matches against each pattern, with early termination
             fns = fieldnames(kwargs);
-                         for fn_={fns{:}}
-                             k = fn_{1};
-            %for idx=1:numel(fns)
+            
+            for idx=1:numel(fns)
                 
                 k = fns{idx};
                 val = kwargs.(k);
-                fprintf('Checking %s = %s\n', k, mat2str(val))
                 idx_ = cellfun(@(x) check_matches(x, k, val), matches);
                 matches = matches(idx_);
                 if isempty(matches)
