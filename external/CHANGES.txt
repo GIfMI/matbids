@@ -1,0 +1,8 @@
+v1.0
+* First release
+
+v1.1
+* Fixed bug with handling prefixes longer than keywords
+* Moved some functions to private folder to expose only the package API
+- Removed function expand
+- Removed function getSynopsis (still under development)
