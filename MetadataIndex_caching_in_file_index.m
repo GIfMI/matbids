@@ -6,8 +6,8 @@ classdef MetadataIndex < handle
     
     properties (SetAccess = private)
         layout
-        key_index
-        file_index
+        key_index = struct
+        file_index = []
     end
     
     methods
@@ -22,13 +22,11 @@ classdef MetadataIndex < handle
             parse(p, layout);
             
             obj.layout = p.Results.layout;
-            %             obj.key_index = containers.Map('KeyType', 'char', 'ValueType', 'any');
-            %             obj.file_index = containers.Map('KeyType', 'char', 'ValueType', 'any');
-            obj.key_index = struct;
-            obj.file_index = {};
+            %obj.key_index = struct;
+            %obj.file_index = [];
         end
-        
-        function index_file(obj, f, varargin)
+
+         function index_file(obj, f, varargin)
         %function index_file(obj, f, overwrite)
             % Index metadata for the specified file.
             %
@@ -45,23 +43,26 @@ classdef MetadataIndex < handle
             f = p.Results.f;
             overwrite = p.Results.overwrite;
          
-%             if ~isempty(varargin)
-%                 overwrite = logical(varargin{1});
-%             end
-            
             if ischar(f)
                 f = obj.layout.get_file(f);
             end
-            idx_ = find(cellfun(@(x) strcmp(f.fpath, x.fpath) , obj.file_index));
-%             f_hash = string2hash(f.fpath);
-%             hash_array = cellfun(@(x) x.bfile.hash, files);
-%             idx_ = find(hash_array==f_hash, 1);
-
+           
+            % with cell
+            %file_index_fnames = cellfun(@(x) x.bfile.fpath,  obj.file_index, 'uni', false);
             
-
-            if ~isempty(idx_) && ~ overwrite
-                disp('already indexed')
-               %             if obj.file_index.isKey(f.fpath) && ~overwrite
+            % with vector
+            % file_index_fnames = arrayfun(@(x) x.bfile.fpath,  obj.file_index, 'uni', false);
+            
+            % with extra fpath caching in file_index
+            if ~isempty(obj.file_index)
+                file_index_fnames = {obj.file_index.fpath};
+            else
+                file_index_fnames = {};
+            end
+            
+            [fileidx, ib] = ismember(file_index_fnames, {f.fpath});
+            
+            if any(fileidx) && ~ overwrite
                 return
             end
             
@@ -69,33 +70,148 @@ classdef MetadataIndex < handle
             if ~isfield(f.entities, 'suffix')
                 return
             end
+
             md = obj.get_metadata_(f.fpath);
             fns = fieldnames(md);
             
-%             for fn_ = {fns{:}}
-%                 md_key = fn_{1};
-            for idx = 1:numel(fns)
-                md_key = fns{idx};
+            for fnidx = 1:numel(fns)
+                md_key = fns{fnidx};
                 md_val = md.(md_key);
                 
                 if ~isfield(obj.key_index, md_key)
                     obj.key_index.(md_key) = {};
                 end
-                disp('hashing')
-                %obj.key_index.(md_key){end+1} =  {f.fpath, md_val};
-                obj.key_index.(md_key){end+1}.fpath =  f.fpath;
-                %obj.key_index.(md_key){end}.hash =  f.hash;
-                obj.key_index.(md_key){end}.md_val =  md_val;
-                idx_ = find(cellfun(@(x) strcmp(f.fpath, x.fpath) , obj.file_index));
                 
-                if isempty(idx_)
-                    obj.file_index{end+1}.fpath = f.fpath;
-                    obj.file_index{end}.md.(md_key) = md_val;
+                obj.key_index.(md_key){end+1}.bfile =  f;
+                obj.key_index.(md_key){end}.md_val =  md_val;
+                obj.key_index.(md_key);
+                
+                 % without internal caching
+%                  updated_file_index_fnames = cellfun(@(x) x.bfile.fpath,  obj.file_index, 'uni', false);
+%                  [idx_, ib] = ismember(updated_file_index_fnames, {f.fpath});
+
+                 % without internal caching
+                 %file_index_fnames = cellfun(@(x) x.bfile.fpath,  obj.file_index, 'uni', false);
+                 [idx_, ib] = ismember(file_index_fnames, {f.fpath});
+
+                  % with internal caching
+                  if ~isempty(obj.file_index)
+                      file_index_fnames = {obj.file_index.fpath};
+                  else
+                      file_index_fnames = {};
+                  end
+                 %file_index_fnames = {obj.file_index.fpath};
+                 [idx_, ib] = ismember(file_index_fnames, {f.fpath});
+                 
+                 
+                if ~any(idx_)
+                    % not in file index
+                    str.bfile = f;
+                    str.md.(md_key) = md_val;
+                    % for faster lookup
+                    str.fpath =  f.fpath;
+                    
+                    obj.file_index =  [obj.file_index str];
+                    
+%                     obj.file_index{end+1}.bfile = f;
+%                     obj.file_index{end}.md.(md_key) = md_val;
+                    % for internal caching
+                    
+                    
+                    %file_index_fnames{end+1} = f.fpath;
                 else
-                    obj.file_index{idx_}.md.(md_key) = md_val;
+                    % found in file index, update md_key
+                    %obj.file_index{idx_}.md.(md_key) = md_val;
+                    obj.file_index(idx_).md.(md_key) = md_val;
                 end
             end
-        end
+         end
+         
+%          function index_file(obj, f, varargin)
+%         %function index_file(obj, f, overwrite)
+%             % Index metadata for the specified file.
+%             %
+%             % Args:
+%             % 	f (BIDSFile, str): A BIDSFile or path to an indexed file.
+%             %   	overwrite (bool): If True, forces reindexing of the file even if
+%             %       an entry already exists.
+%             p = inputParser;
+%             addRequired(p, 'f',@(x)validateattributes(x,{'BIDSFile', 'char'},{'nonempty'}));
+%             addParameter(p, 'overwrite', false, @(x)validateattributes(x,{'logical', 'double'},{}));
+%             
+%             parse(p, f, varargin{:});
+%             
+%             f = p.Results.f;
+%             overwrite = p.Results.overwrite;
+%          
+% %             if ~isempty(varargin)
+% %                 overwrite = logical(varargin{1});
+% %             end
+%             
+%             %disp('=============================================================================================')
+%             if ischar(f)
+%                 f = obj.layout.get_file(f);
+%             end
+%            
+%            % f_hash = string2hash(f.fpath);
+%            %    hash_array = cellfun(@(x) x.bfile.hash, obj.file_index);
+%            %    idx_ = find(hash_array==f_hash, 1);
+%                
+%            % idx_ = find(cellfun(@(x) strcmp(f.fpath, x.bfile.fpath) , obj.file_index));
+% 
+%            % fastest
+%             file_index_fnames = cellfun(@(x) x.bfile.fpath,  obj.file_index, 'uni', false);
+%             [fileidx, ib] = ismember(file_index_fnames, {f.fpath});
+% 
+%             if any(fileidx) && ~ overwrite
+% %            if ~isempty(idx_) && ~ overwrite
+%                %             if obj.file_index.isKey(f.fpath) && ~overwrite
+%                 return
+%             end
+%             
+%             % Skip files without suffixes
+%             if ~isfield(f.entities, 'suffix')
+%                 return
+%             end
+% 
+%             md = obj.get_metadata_(f.fpath);
+%             fns = fieldnames(md);
+%             
+% %             for fn_ = {fns{:}}
+% %                 md_key = fn_{1};
+%             for idx = 1:numel(fns)
+%                 md_key = fns{idx};
+%                 md_val = md.(md_key);
+%                 
+%                 if ~isfield(obj.key_index, md_key)
+%                     obj.key_index.(md_key) = {};
+%                 end
+%                 
+%                 obj.key_index.(md_key){end+1}.bfile =  f;
+%                 %obj.key_index.(md_key){end}.fpath =  f.fpath;
+%                 obj.key_index.(md_key){end}.md_val =  md_val;
+% 
+%                 obj.key_index.(md_key);
+%                 % hash_array = cellfun(@(x) x.bfile.hash,obj.file_index);
+%                 % idx_ = find(hash_array == f.hash);
+%                 %idx_ = find(cellfun(@(x) strcmp(f.fpath, x.bfile.fpath) , obj.file_index));
+%                 
+%                  updated_file_index_fnames = cellfun(@(x) x.bfile.fpath,  obj.file_index, 'uni', false);
+%                  [idx_, ib] = ismember(updated_file_index_fnames, {f.fpath});
+% 
+%                 if ~any(idx_)
+%                 %if isempty(idx_)
+%                     obj.file_index{end+1}.bfile = f;
+%                     %obj.file_index{end}.fpath = f.fpath;
+%                     obj.file_index{end}.md.(md_key) = md_val;
+%                 else
+%                     obj.file_index{idx_}.md.(md_key) = md_val;
+%                 end
+%             end
+%         end
+        
+        
+%  
         
         function results = get_metadata_(obj, fpath, varargin)
             p = inputParser;
@@ -113,6 +229,7 @@ classdef MetadataIndex < handle
             %kwargs = namedargs2cell(p.Unmatched);
             %             kwargs = reshape([fieldnames(kwargs) struct2cell(kwargs)]',2*numel(fieldnames(kwargs)), []);
             %             kwargs = {kwargs{:}};
+            
             potential_jsons = obj.layout.get_nearest(fpath, ...
                 'return', 'file', ...
                 'all_', true, ...
@@ -163,7 +280,7 @@ classdef MetadataIndex < handle
             defined_fields = cellify(p.Results.defined_fields);
             
             all_keys = union(defined_fields, fieldnames(kwargs));
-            %all_keys = {all_keys{:}};
+
             if isempty(all_keys)
                 error('At least one field to search on must be passed.');
             end
@@ -186,10 +303,10 @@ classdef MetadataIndex < handle
                 %fprintf('Indexing metadata of %s \n', f);
                 obj.index_file(f);
             end
-            %  Make it a row vector to index, stupid Matlab behavior
-            if numel(all_keys) >1
-                all_keys = {all_keys{:}};
-            end
+%             %  Make it a row vector to index, stupid Matlab behavior
+%             if numel(all_keys) >1
+%                 all_keys = {all_keys{:}};
+%             end
             
             % Get file intersection of all kwargs keys--this is fast
             filesets = {};
@@ -199,7 +316,9 @@ classdef MetadataIndex < handle
                 key = all_keys{idx};
                 %cellfun(@(x) x.fpath obj.key_index.(key), 'uni', false);
                 if isempty(filesets)
-                    filesets = cellfun(@(x) x.fpath, obj.key_index.(key), 'uni', false);
+                    obj.key_index
+                    filesets = cellfun(@(x) x.bfile.fpath, obj.key_index.(key), 'uni', false);
+                    %filesets = cellfun(@(x) x.fpath, obj.key_index.(key), 'uni', false);
                 else
                     filesets = intersect(filesets, cellfun(@(x) x.fpath, obj.key_index.(key), 'uni', false));
                 end
@@ -218,8 +337,16 @@ classdef MetadataIndex < handle
             % Deep comparison: comparing integers and strings results in
             % internal conversion
             function m = check_matches(f, key, val)
-                idx_ = find(cellfun(@(x) strcmp(f, x.fpath) , obj.file_index));
-                f_val = obj.file_index{idx_}.md.(key);
+%                idx_ = find(cellfun(@(x) strcmp(f, x.fpath) , obj.file_index));
+
+                % with vector
+                idx_ = find(arrayfun(@(x) strcmp(f, x.bfile.fpath) , obj.file_index));
+                f_val = obj.file_index(idx_).md.(key);
+                
+                % with cell
+                %idx_ = find(cellfun(@(x) strcmp(f, x.bfile.fpath) , obj.file_index));
+                %f_val = obj.file_index{idx_}.md.(key);
+
                 [~, ff] = fileparts(f);
                 if ischar(val) && ~isempty(strfind(val, '*'))
                     % regular expression

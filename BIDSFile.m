@@ -20,7 +20,7 @@ classdef BIDSFile < matlab.mixin.Copyable
     properties (SetAccess = private)
         filename = ''
         dirname = ''
-        %tags = ''
+
         entities = struct
         parent = []
         layout = []
@@ -28,28 +28,28 @@ classdef BIDSFile < matlab.mixin.Copyable
     
     properties 
         fpath = ''
-        hash = [];
+        %hash = [];
     end
     
     methods
-%         function disp(obj)
-%             %fprintf('Class: BIDSFile | Path: %s | Dirname: %s | Filename: %s | Entities: %d\n', obj.fpath, obj.filename, obj.dirname, numel(obj.entities));
-%             fprintf('Class: BIDSFile | Path: %s', obj.fpath);
-%             fns = fieldnames(obj.entities);
-%             
-%             if ~isempty(fns)
-%                 fprintf(' | Entities: ');
-%                 
-%                 delim = ' | ';
-%                 for i=1:numel(fns)
-%                     if i==numel(fns)
-%                         delim = '';
-%                     end
-%                     fprintf('%s: %s%s', fns{i}, num2str(obj.entities.(fns{i})), delim);
-%                 end
-%             end
-%             fprintf('\n');
-%         end
+        function disp(obj)
+            %fprintf('Class: BIDSFile | Path: %s | Dirname: %s | Filename: %s | Entities: %d\n', obj.fpath, obj.filename, obj.dirname, numel(obj.entities));
+            fprintf('Class: BIDSFile | Path: %s', obj.fpath);
+            fns = fieldnames(obj.entities);
+            
+            if ~isempty(fns)
+                fprintf(' | Entities: ');
+                
+                delim = ' | ';
+                for i=1:numel(fns)
+                    if i==numel(fns)
+                        delim = '';
+                    end
+                    fprintf('%s: %s%s', fns{i}, num2str(obj.entities.(fns{i})), delim);
+                end
+            end
+            fprintf('\n');
+        end
         
 %         function obj = set.fpath(obj, fpath)
 %             obj.fpath =fpath;
@@ -79,12 +79,12 @@ classdef BIDSFile < matlab.mixin.Copyable
             end
             
             obj.parent = p.Results.parent;
-            obj.entities = struct;
-            obj.hash = string2hash(obj.fpath);
+            %obj.entities = struct;
+            %obj.hash = string2hash(obj.fpath);
         end
         
         function ent = get_entity(obj, entity)
-            if isfield(obj.entities, entity) && ~isempty(obj.entities)
+            if ~isempty(obj.entities) && isfield(obj.entities, entity)
                 ent = obj.entities.(entity);
             else
                 error('Entity does not exist')
@@ -115,27 +115,6 @@ classdef BIDSFile < matlab.mixin.Copyable
         end
         
         
-        %         function varargout = subsref(obj,s)
-        %             varargout{1} = [];
-        %             if numel(s) == 1
-        %                 switch s(1).type
-        %                  case '.'
-        %                      if isprop(obj, s(1).subs)
-        %                          varargout{1} = obj.(s(1).subs);
-        %                      else
-        %                          if isfield(obj.entities, s(1).subs)
-        %                              varargout{1} = obj.entities.(s(1).subs);
-        %                          end
-        %                      end
-        %                  otherwise
-        %                      error('Not a valid indexing expression')
-        %                 end
-        %             else
-        %                 [varargout{1:nargout}] = builtin('subsref',obj,s);
-        %             end
-        %         end
-        
-        
         function im = image(obj)
             % load image file
             obj.fpath;
@@ -144,7 +123,8 @@ classdef BIDSFile < matlab.mixin.Copyable
         
         function my_metadata = metadata(obj)
             try
-                my_metadata = obj.layout.get_metadata(obj.fpath);
+                %my_metadata = obj.layout.get_metadata(obj.fpath);
+                my_metadata = obj.layout.get_metadata(obj);
             catch
                 my_metadata = [];
             end
@@ -187,7 +167,6 @@ classdef BIDSFile < matlab.mixin.Copyable
                 return
             end
                 
-            
             %for i=fns' is slower than indexing
             for idx=1:numel(fns)
                 name = fns{idx};
@@ -199,19 +178,61 @@ classdef BIDSFile < matlab.mixin.Copyable
                 end
                 
                 if isempty(val)
-                    %ismatch = false;
                     continue
                 end
-                val = cellify(val);
                 
-                % much faster than cellfun, also more optimized for speed
+                if ~iscell(val)
+                    val = cellify(val);
+                end
+                
+                % outperforms all other implementations, even with growing
+                % array size !!!!!!!!!!!!
+                % at least twice as fast as the 2-line cellfun/strjoin
+                % implementation
                  patt = make_patt(val{1}, regex_search);
                  if numel(val)>1
                      for idx2=1:numel(val)
                          patt = [patt, '|', make_patt(val{idx2}, regex_search)];
                      end
                  end
-                 %patt(1)='';
+
+                %  1/3 faster as with cellfun (?)
+                %patt = {};
+%                 patt = cell(1, numel(val));
+%                 for idx2=1:numel(val)
+%                      patt{idx2} = make_patt(val{idx2}, regex_search);
+%                 end
+%                 patt = sprintf('%s|', patt{:});
+%                 patt(end) = [];
+
+                
+                %  1/3 faster as with cellfun (?)
+                %patt = {};
+                %patt = cell(1, numel(val));
+%                      for idx2=1:numel(val)
+%                          patt{idx2} = make_patt(val{idx2}, regex_search);
+%                      end
+%                  
+%                  patt = strjoin(patt, '|');
+                
+
+                  %  almost the same as below !!!!!!!!!!!!!!!!!!!
+
+%                  patt = make_patt(val{1}, regex_search);
+%                  if numel(val)>1
+%                      for idx2=1:numel(val)
+%                          patt = strcat(patt, '|', make_patt(val{idx2}, regex_search));
+%                      end
+%                  end
+
+               
+                 
+%                 %  1/3 faster as with cellfun (?)
+%                  epatt=cell(1,numel(val));
+%                  for idx2=1:numel(val)
+%                      epatt{idx2} = make_patt(val{idx2}, regex_search);
+%                  end
+%                  patt = strjoin(epatt, '|');
                 
 %                  ent_patts = cellfun(@(x) make_patt(x, regex_search), val, 'uni', false);
 %                  patt = strjoin(ent_patts, '|');
@@ -223,177 +244,7 @@ classdef BIDSFile < matlab.mixin.Copyable
             end
             ismatch = true;
        end
-        
-       
-       
-%       function ismatch = matches(obj, varargin)
-%             % no input parameter checking with inputParser due to overhead
-% %            tic
-% 
-%             if nargin
-%                 entities = varargin{1};
-%             else
-%                 entities = [];
-%             end
-%             
-%             if nargin>2
-%                 regex_search = varargin{2};
-%             else
-%                 regex_search = false;
-%             end
-%             
-%             
-% %             entities = [];
-% %             regex_search = false;
-% %             if nargin
-% %                 entities = varargin{1};
-% %             end
-% %             
-% %             if nargin>2
-% %                 regex_search = varargin{2};
-% %             end
-% 
-%             fns = fieldnames(entities);
-%             
-%             if isempty(fns)
-%                 ismatch = true;
-%                 return
-%             end
-%             
-%             
-%             for name_ = fns'
-%                 name = name_{1};
-%                 val = entities.(name);
-%                 
-%                 if xor(~isfield(obj.entities, name), isempty(val))
-%                     ismatch = false;
-%                     return
-%                 end
-%                 
-%                 if isempty(val)
-%                     ismatch = false;
-%                     continue
-%                 end
-%                 
-%                 val = cellify(val);
-%                 
-%                 ent_patts = cellfun(@(x) make_patt(x, regex_search), val, 'uni', false);
-%                 patt = strjoin(ent_patts, '|');
-% 
-%                 %cast = castto(obj.entities.(name), 'char');
-% 
-%                 if isempty(regexp(castto(obj.entities.(name), 'char'), patt, 'once'))
-%                     ismatch = false;
-%                     return
-%                 end
-%             end
-%             ismatch = true;
-%        end 
-%        
-       
-       
-       
-       
-       
-       
-       
-       
-%         function ismatch = matches(obj, varargin)
-% %             tic
-% %             p = inputParser;
-% %             addOptional(p, 'entities', [], @(x)validateattributes(x,{'struct'},{}));
-% %             %addOptional(p, 'extensions', {}, @(x)validateattributes(x,{'cell', 'char'},{}));
-% %             addOptional(p, 'regex_search', false, @(x)validateattributes(x,{'logical', 'double'},{'nonempty'}));
-% %             parse(p, varargin{:});
-% %             %extensions = cellify(p.Results.extensions);
-% %             entities = p.Results.entities;
-% %             regex_search = logical(p.Results.regex_search);
-% %            ismatch = true;
-% %             toc
-%             
-%             % no input parameter checking with inputParser due to overhead
-% %            tic
-%             entities = [];
-%             regex_search = false;
-%             ismatch = true;
-%             if nargin
-%                 entities = varargin{1};
-%             end
-%             
-%             if nargin>2
-%                 regex_search = varargin{2};
-%             end
-%  %           toc
-% 
-%             
-%             %             if ~isempty(extensions)
-% %                 extensions = cellfun(@(x) regex_escstr(x), extensions, 'uni', false);
-% %                 extensions = strjoin(extensions, '|');
-% %                 % small bug in pybids: add . to extensions list regular
-% %                 % expression
-% %                 extensions = strjoin({'.(', extensions, ')$'}, '');
-% %                 
-% %                 extfound = regexp(obj.filename, extensions, 'once');
-% %                 
-% %                 if isempty(extfound)
-% %                     ismatch = false;
-% %                     return
-% % 
-% %                 end
-% %             end
-%  
-%             if isempty(fieldnames(entities))
-%                 ismatch = true;
-%                 return
-%             end
-% %               moved to separate function, performance speed        
-% %             function patt = make_patt_(x)
-% %                 patt = castto(x, 'char');
-% %                 
-% %                 if ~regex_search
-% %                     patt = regex_escstr(patt);
-% %                 end
-% %                 
-% %                 if isa(x, 'numeric')
-% %                     patt = strcat('0*', patt);
-% %                 end
-% %                 
-% %                 if ~regex_search
-% %                     patt = strcat('^', patt, '$');
-% %                 end
-% %             end
-% 
-%             fn = fieldnames(entities);
-%             for i = 1:numel(fieldnames(entities))
-%                 name = fn{i};
-%                 val = entities.(name);
-%                 %disp(sprintf('testing for %s = %s', name, castto(val, 'char')))
-%                 
-%                 if xor(~isfield(obj.entities, name), isempty(val))
-%                     ismatch = false;
-%                     return
-%                 end
-%                 
-%                 if isempty(val)
-%                     ismatch = false;
-%                     continue
-%                 end
-% 
-%                 val = cellify(val);
-%                 % ent_patts = cellfun(@(x) make_patt_(x), val, 'uni', false);
-%                 ent_patts = cellfun(@(x) make_patt(x, regex_search), val, 'uni', false);
-%                 patt = strjoin(ent_patts, '|');
-% 
-%                 cast = castto(obj.entities.(name), 'char');
-% 
-%                 if isempty(regexp(castto(obj.entities.(name), 'char'), patt, 'once'))
-%                     ismatch = false;
-%                     return
-%                 end
-%             end
-%             ismatch = true;
-%        
-%         end
+
         
         function copyfile(obj, path_patterns, varargin)
             % different name as in pybids to allow inheritance from

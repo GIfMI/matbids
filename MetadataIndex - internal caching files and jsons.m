@@ -28,6 +28,77 @@ classdef MetadataIndex < handle
             obj.layout = p.Results.layout;
         end
         
+%         function index_file(obj, f, varargin)
+%             %function index_file(obj, f, overwrite)
+%             % Index metadata for the specified file.
+%             %
+%             % Args:
+%             % 	f (BIDSFile, str): A BIDSFile or path to an indexed file.
+%             %   	overwrite (bool): If True, forces reindexing of the file even if
+%             %       an entry already exists.
+%             %
+%             % Little bit slower than below
+%             p = inputParser;
+%             addRequired(p, 'f',@(x)validateattributes(x,{'BIDSFile', 'char'},{'nonempty'}));
+%             addParameter(p, 'overwrite', false, @(x)validateattributes(x,{'logical', 'double'},{}));
+%             
+%             parse(p, f, varargin{:});
+%             
+%             f = p.Results.f;
+%             overwrite = p.Results.overwrite;
+%             
+%             if ischar(f)
+%                 f = obj.layout.get_file(f);
+%             end
+%             
+%             % check if already indexed
+%             [fileidx, ~] = ismember(obj.file_index_fnames, f.fpath);
+% %             disp('first')
+% %             fileidx
+%              if any(fileidx) && ~ overwrite
+% %                 disp('already index')
+%                 return
+%             end
+%             %fileidx = find(fileidx);
+%             
+%             % Skip files without suffixes
+%             if ~isfield(f.entities, 'suffix')
+% %                 disp('no ent')
+%                 return
+%             end
+%             
+%             md = obj.get_metadata_(f.fpath);
+%             fns = fieldnames(md);
+% 
+%             for fnidx = 1:numel(fns)
+%                 md_key = fns{fnidx};
+%                 md_val = md.(md_key);
+%                 
+%                 if ~isfield(obj.key_index, md_key)
+%                     obj.key_index.(md_key) = {};
+%                 end
+%                 
+%                 obj.key_index.(md_key){end+1}.bfile =  f;
+%                 obj.key_index.(md_key){end}.md_val =  md_val;
+% %                 disp('second')
+% %                 fileidx
+%                  if ~any(fileidx)
+%                      fileidx = [fileidx true];
+%                      %fileidx = numel(obj.file_index)+1;
+%                      str.bfile = f;
+%                      str.md.(md_key) = md_val;
+%                      
+%                      obj.file_index{fileidx} =  str;
+%                     obj.file_index_fnames{fileidx} = f.fpath;
+%                 
+%                  else
+% %                     disp('update')
+%                     % found in file index, update md_key
+%                     obj.file_index{fileidx}.md.(md_key) = md_val;
+%                 end
+%             end
+%         end
+%         
         function index_file(obj, f, varargin)
             %function index_file(obj, f, overwrite)
             % Index metadata for the specified file.
@@ -55,47 +126,36 @@ classdef MetadataIndex < handle
             if any(fileidx) && ~ overwrite
                 return
             end
+            % This should be a unique index
+            fileidx = find(fileidx);
             
             % Skip files without suffixes
             if ~isfield(f.entities, 'suffix')
                 return
             end
             
-            % This should be a unique index
-            fileidx = find(fileidx);
-
             md = obj.get_metadata_(f.fpath);
             fns = fieldnames(md);
-            
+
             for fnidx = 1:numel(fns)
                 md_key = fns{fnidx};
                 md_val = md.(md_key);
                 
                 if ~isfield(obj.key_index, md_key)
-                    % fastest with struct array
-% % %                     obj.key_index.(md_key) = {};
-                    obj.key_index.(md_key) = struct;
-                    idx = 1;
-                else
-                    idx = numel(obj.key_index.(md_key)) + 1;
+                    obj.key_index.(md_key) = {};
                 end
                 
-% % %                 obj.key_index.(md_key){end+1}.bfile =  f;
-% % %                 obj.key_index.(md_key){end}.fpath =  f.fpath;
-% % %                 obj.key_index.(md_key){end}.md_val =  md_val;
-
-                obj.key_index.(md_key)(idx).bfile =  f;
-                obj.key_index.(md_key)(idx).fpath =  f.fpath;
-                obj.key_index.(md_key)(idx).md_val =  md_val;
+                obj.key_index.(md_key){end+1}.bfile =  f;
+                obj.key_index.(md_key){end}.md_val =  md_val;
                 
-                if isempty(fileidx)
-                    fileidx = numel(obj.file_index)+1;
-                    str.bfile = f;
-                    str.md.(md_key) = md_val;
-                    
-                    obj.file_index{fileidx} =  str;
+                 if isempty(fileidx)
+                     fileidx = numel(obj.file_index)+1;
+                     str.bfile = f;
+                     str.md.(md_key) = md_val;
+                     
+                     obj.file_index{fileidx} =  str;
                     obj.file_index_fnames{fileidx} = f.fpath;
-                    
+                
                 else
                     % found in file index, update md_key
                     obj.file_index{fileidx}.md.(md_key) = md_val;
@@ -135,7 +195,7 @@ classdef MetadataIndex < handle
             % The calling function must take care of absolute paths
             for json_file_path_= potential_jsons(end:-1:1)
                 json_file_path = json_file_path_{1};
-                
+% for i=1:100                    
                 if exist(json_file_path, 'file') == 2
                     % ADDED: caching of json data to avoid multiple
                     % jsonread call
@@ -144,9 +204,21 @@ classdef MetadataIndex < handle
                     % loading of json files
                     
                     % check if already indexed
-                    % fastest with internal and logical indexing
-                    [fileidx, ~] = ismember(obj.json_index_fnames, json_file_path);
+                    %             json_index_files = cellfun(@(x) x.fpath, obj.json_index, 'uni', false);
+                    %             [fileidx, ~] = ismember(json_index_files, json_file_path);
+                    %
+                    %
+                    %             fileidx = find(fileidx);
+                    %                     if isempty(fileidx)
+                    fileidx = cellfun(@(x) strcmp(x.fpath, json_file_path), obj.json_index);
+                    
                     if ~any(fileidx)
+
+                        % fastest with internal and logical indexing
+%                        [fileidx, ~] = ismember(obj.json_index_fnames, json_file_path);
+% 
+%                         if ~any(fileidx) 
+
                         %fileidx = numel(obj.json_index)+1;
                         fileidx = [fileidx true];
                         obj.json_index{fileidx}.fpath = json_file_path;
@@ -157,6 +229,13 @@ classdef MetadataIndex < handle
                     param_struct = obj.json_index{fileidx}.json;
                     results = update_struct(param_struct, results);
                 end
+% end
+% for i=1:100                
+%                 if exist(json_file_path, 'file') == 2
+%                     param_struct = jsonread(json_file_path);
+%                     results = update_struct(param_struct, results);
+%                 end
+% end
             end
         end
         
@@ -201,11 +280,10 @@ classdef MetadataIndex < handle
             end
             
             % Index metadata for any previously unseen files
-            
+   
             %             for f_=files
             %                 f = f_{1};
             t= [];
-
             for idx=1:numel(files)
                 f = files{idx};
                 tic
@@ -214,28 +292,22 @@ classdef MetadataIndex < handle
                 t(end+1) = toc;
                 %disp(t(end));
             end
-            disp(fprintf('total = %f | mean = %f | std = %f | min = %f | std = %f', sum(t), mean(t), std(t), min(t), max(t)));
+            disp(fprintf('mean = %f | std = %f | min = %f | std = %f', mean(t), std(t), min(t), max(t)));
             
             % Get file intersection of all kwargs keys--this is fast
             filesets = {};
             %             for key_=all_keys{:}
             %                 key = key_{1};
-
             for idx = 1:numel(all_keys)
                 key = all_keys{idx};
+                %cellfun(@(x) x.fpath obj.key_index.(key), 'uni', false);
                 if isempty(filesets)
-                    % no big difference overall, but struct array is faster
-                    % in this loop
-% % %                     %filesets = cellfun(@(x) x.bfile.fpath, obj.key_index.(key), 'uni', false);
-% % %                     filesets = cellfun(@(x) x.fpath, obj.key_index.(key), 'uni', false);
-                    filesets = {obj.key_index.(key).fpath};
+                    filesets = cellfun(@(x) x.bfile.fpath, obj.key_index.(key), 'uni', false);
+                    %filesets = cellfun(@(x) x.fpath, obj.key_index.(key), 'uni', false);
                 else
-% % %                     %filesets = intersect(filesets, cellfun(@(x) x.bfile.fpath, obj.key_index.(key), 'uni', false));
-% % %                     filesets = intersect(filesets, cellfun(@(x) x.fpath, obj.key_index.(key), 'uni', false));
-                     filesets = intersect(filesets, {obj.key_index.(key).fpath});
+                    filesets = intersect(filesets, cellfun(@(x) x.fpath, obj.key_index.(key), 'uni', false));
                 end
             end
-
             matches = filesets; % same as pybids
             
             if ~isempty(files)
@@ -284,9 +356,9 @@ classdef MetadataIndex < handle
             
             % Serially check matches against each pattern, with early termination
             fns = fieldnames(kwargs);
-                         for fn_={fns{:}}
-                             k = fn_{1};
-            %for idx=1:numel(fns)
+            %             for fn_={fns{:}}
+            %                 k = fn_{1};
+            for idx=1:numel(fns)
                 
                 k = fns{idx};
                 val = kwargs.(k);

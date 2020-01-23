@@ -16,14 +16,14 @@ classdef BIDSRootNode < BIDSNode
             p = inputParser;
             addRequired(p, 'fpath',@(x)validateattributes(x,{'char'},{'nonempty'}));
             addRequired(p, 'config', @(x)validateattributes(x,{'cell', 'Config'},{'nonempty'}));
-            addRequired(p, 'layout', @(x)validateattributes(x,{'cell', 'Config'},{'nonempty'}));
-            addOptional(p, 'force_index', false, @(x)validateattributes(x,{'bool'},{'nonempty'}));
-            %--- disable parser temporarily to check functionality
+            addRequired(p, 'layout', @(x)validateattributes(x,{'cell', 'BIDSLayout'},{'nonempty'}));
+            addOptional(p, 'force_index', false, @(x)validateattributes(x,{'logical', 'double'},{'nonempty'}));
+            
+            %--- disable parser temporarily to check functionality, keep it
+            % to the parent class
             %parse(p, fpath, config, layout, varargin{:});
             force_index = true;
             %---
-%%%            disp('Creating BIDSRootNode');
-         %   obj@BIDSNode(fpath, config, 'force_index', force_index, 'layout', layout);
             obj@BIDSNode(fpath, config, layout, {}, {}, force_index);
         end
     end

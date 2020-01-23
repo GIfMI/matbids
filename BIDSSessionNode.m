@@ -9,7 +9,6 @@ classdef BIDSSessionNode < BIDSNode
     
     methods %(Access = protected)
          function obj = BIDSSessionNode(varargin)
-%%%            disp('Creating BIDSSessionNode');
             obj@BIDSNode(varargin{:});
          end
          

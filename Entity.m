@@ -6,6 +6,7 @@ classdef Entity < matlab.mixin.Copyable
         directory = ''
         map_func = '';
         dtype = ''
+        % files = struct('file', {}, 'value', {}, 'hash', {})
         files = struct('file', {}, 'value', {})
         regex = ''
     end
@@ -53,26 +54,33 @@ classdef Entity < matlab.mixin.Copyable
         
         function val = match_file(obj, f)
             val = [];
-            if ~isempty(obj.map_func)
-                val = obj.map_func(f);
-            else
+            if isempty(obj.map_func)
                 tokens = regexp(f.fpath, obj.regex, 'tokens');
 
                 if ~isempty(tokens)
                     % take the first token
                     val = tokens{1}{1};
                 end
+            else
+                val = obj.map_func(f);
             end
             val = obj.astype(val);
         end
         
         function add_file(obj, filename, value)
-            idx = find(strcmp({obj.files.file}, filename));
+            %idx = find(strcmp({obj.files.file}, filename));
+            idx = find(ismember({obj.files.file}, filename));
+            
+            % fastest but will be deprecated
+            %idx = (strmatch({obj.files.file}, filename, 'exact'));
+                
             if isempty(idx)
                 idx = length(obj.files)+1;
             end
+            
             obj.files(idx).file = filename;
             obj.files(idx).value = value;
+            % obj.files(idx).hash = string2hash(filename);
         end            
             
         function values = unique(obj)

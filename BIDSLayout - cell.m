@@ -22,9 +22,8 @@ classdef BIDSLayout < handle
     % this node, even if it fails standard BIDS validation.
     
     
-    % with cell: changes in BIDSNode
-    % cell version is much faster (around twice) as the vector based
-    % version!!!
+    % with cell: changes in BIDSFile | MetadataIndex
+    
     
     % properties (Constant)
     % default_ignore = {'code', 'stimuli', 'sourcedata', 'models',
@@ -553,9 +552,7 @@ classdef BIDSLayout < handle
 
             % Remove empty files
              % with cell
-             % with increasing speed
-             %files = files(find(cellfun(@(x) ~isempty(x), files)));
-             %files = files(~cellfun(@ isempty, files));
+%             files = files(find(cellfun(@(x) ~isempty(x), files)));
             % much much faster!
             files = files(~cellfun('isempty', files));
 
