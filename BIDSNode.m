@@ -201,6 +201,19 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
                 % Extract entity values
                 match_vals = struct;
                 
+                
+                % BETTER:
+                % 1. parse filename
+                % 2. translate to entity names
+                % 3. loop over present entities
+                
+                
+                
+                
+                
+                
+                
+                
                 entities_ = struct2cell(obj.available_entities);
                 for e=1:numel(entities_)
                     e=entities_{e};
@@ -213,7 +226,6 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
                             break
                         end
                     end
-                    
                 end
                 
                 fns = fieldnames(match_vals);
@@ -223,7 +235,11 @@ classdef BIDSNode < matlab.mixin.Copyable % handle
                         e = match_vals.(name){1};
                         val = match_vals.(name){2};
                         bf.add_entity(name, val);
-                        e.add_file(bf.fpath, val);
+                        
+                        e.add_file(bf, val);
+                        %e.add_file(bf.fpath, val);
+                        
+
                     end
                     obj.files{end+1}= bf;
                     % Also add to the Layout's master list

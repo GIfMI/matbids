@@ -54,7 +54,7 @@ classdef MetadataIndex < handle
             [fileidx_, ~] = ismember(obj.file_index_fnames, f.fpath);
             
             if any(fileidx_) && ~ overwrite
-                 disp('already indexed')
+                 %disp('already indexed')
                 return
             end
             

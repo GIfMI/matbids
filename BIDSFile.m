@@ -31,23 +31,23 @@ classdef BIDSFile < matlab.mixin.Copyable
     end
     
     methods
-        function disp(obj)
-            fprintf('Class: BIDSFile | Path: %s', obj.fpath);
-            fns = fieldnames(obj.entities);
-            
-            if ~isempty(fns)
-                fprintf(' | Entities: ');
-                
-                delim = ' | ';
-                for i=1:numel(fns)
-                    if i==numel(fns)
-                        delim = '';
-                    end
-                    fprintf('%s: %s%s', fns{i}, num2str(obj.entities.(fns{i})), delim);
-                end
-            end
-            fprintf('\n');
-        end
+%         function disp(obj)
+%             fprintf('Class: BIDSFile | Path: %s', obj.fpath);
+%             fns = fieldnames(obj.entities);
+%             
+%             if ~isempty(fns)
+%                 fprintf(' | Entities: ');
+%                 
+%                 delim = ' | ';
+%                 for i=1:numel(fns)
+%                     if i==numel(fns)
+%                         delim = '';
+%                     end
+%                     fprintf('%s: %s%s', fns{i}, num2str(obj.entities.(fns{i})), delim);
+%                 end
+%             end
+%             fprintf('\n');
+%         end
         
         % Constructor
         function obj = BIDSFile(filename, varargin)
@@ -127,7 +127,8 @@ classdef BIDSFile < matlab.mixin.Copyable
             end
         end
   
-        function ismatch = matches(obj, entities)
+        
+        function ismatch = matches(obj, entities, regex_search)
             %function ismatch = matches(obj, varargin)
             % no input parameter checking with inputParser due to overhead
             % fixed number of input arguments to limit overhead
@@ -147,42 +148,82 @@ classdef BIDSFile < matlab.mixin.Copyable
             %             else
             %                 regex_search = false;
             %             end
-              disp('%%%%%%%%%%%%%%%%')
-              entities
-              obj.entities
+%             disp('%%%%%%%%%%%%%%%%')
+%             entities
+%             obj.entities
             
-            fns = fieldnames(entities);
+            % check fieldnames
+            fns_e = fieldnames(entities);
             
-            if isempty(fns)
+            
+            % always a match when no fieldnames where provided
+            if isempty(fns_e)
                 ismatch = true;
                 return
             end
             
-            %for i=fns' is slower than indexing
-            for idx=1:numel(fns)
-                name = fns{idx};
+            for idx=1:numel(fns_e)
+                name = fns_e{idx};
                 val = entities.(name);
-                
-                if xor(~isfield(obj.entities, name), isempty(val))
-                    ismatch = false;
-                    return
-                end
                 
                 if isempty(val)
                     continue
                 end
                 
-                if ~strcmp(obj.entities.(name), entities.(name))
+                if ~isfield(obj.entities, name)
+                    ismatch = false;
+                    return;
+                end
+                
+                %if ~ismember(val, {obj.entities.(name)})
+                %if ~strcmp(val, obj.entities.(name)) 
+                % fastest solution
+                if ~isequal(val, obj.entities.(name)) 
                     ismatch = false;
                     return
                 end
+                
             end
             ismatch = true;
+%             
+%             %for i=fns' is slower than indexing
+%             for idx=1:numel(fns)
+%                 name = fns{idx};
+%                 val = entities.(name);
+%                 
+%                 if xor(~isfield(obj.entities, name), isempty(val))
+%                     ismatch = false;
+%                     return
+%                 end
+%                 
+%                 if isempty(val)
+%                     continue
+%                 end
+%                 
+%                 if ~iscell(val)
+%                     val = cellify(val);
+%                 end
+%                 
+%                 % outperforms all other implementations, even with growing
+%                 % array size !!!!!!!!!!!!
+%                 % at least twice as fast as the 2-line cellfun/strjoin
+%                 % implementation
+%                 patt = make_patt(val{1}, regex_search);
+%                 if numel(val)>1
+%                     for idx2=1:numel(val)
+%                         patt = [patt, '|', make_patt(val{idx2}, regex_search)];
+%                     end
+%                 end
+%                 patt
+%                 if isempty(regexp(castto(obj.entities.(name), 'char'), patt, 'once'))
+%                     ismatch = false;
+%                     return
+%                 end
+%             end
+%             ismatch = true;
         end
-        
-        
-        
-        function ismatch = matches_exact(obj, entities, regex_search)
+ 
+        function ismatch = matches_b(obj, entities, regex_search)
             %function ismatch = matches(obj, varargin)
             % no input parameter checking with inputParser due to overhead
             % fixed number of input arguments to limit overhead
@@ -202,9 +243,112 @@ classdef BIDSFile < matlab.mixin.Copyable
             %             else
             %                 regex_search = false;
             %             end
-             disp('%%%%%%%%%%%%%%%%')
-             entities
-             obj.entities
+%             disp('%%%%%%%%%%%%%%%%')
+%             entities
+%             obj.entities
+            
+            % check fieldnames
+            fns_e = fieldnames(entities);
+            
+            % always a match when no fieldnames where provided
+            if isempty(fns_e)
+                ismatch = true;
+                return
+            end
+            
+            fns_f = fieldnames(obj.entities);
+            
+            
+            
+            % get common fieldnames
+            fns = intersect(fns_e, fns_f);
+            
+            % if file does not contain the same fieldnames as requested, no
+            % match
+            if numel(fns) ~= numel(fns_e)
+                ismatch = false;
+                return
+            end
+            
+            
+            c = cell(length(fns),1);
+            common_e = cell2struct(c,fns);
+            common_f = cell2struct(c,fns);
+
+            for idx=1:numel(fns)
+                name = fns{idx};
+                val = entities.(name);
+                
+                if isempty(val)
+                    continue
+                end
+                common_e.(name) = val;
+                common_f.(name) = obj.entities.(name);
+            end
+            ismatch = isequal(common_e, common_f);
+%             
+%             %for i=fns' is slower than indexing
+%             for idx=1:numel(fns)
+%                 name = fns{idx};
+%                 val = entities.(name);
+%                 
+%                 if xor(~isfield(obj.entities, name), isempty(val))
+%                     ismatch = false;
+%                     return
+%                 end
+%                 
+%                 if isempty(val)
+%                     continue
+%                 end
+%                 
+%                 if ~iscell(val)
+%                     val = cellify(val);
+%                 end
+%                 
+%                 % outperforms all other implementations, even with growing
+%                 % array size !!!!!!!!!!!!
+%                 % at least twice as fast as the 2-line cellfun/strjoin
+%                 % implementation
+%                 patt = make_patt(val{1}, regex_search);
+%                 if numel(val)>1
+%                     for idx2=1:numel(val)
+%                         patt = [patt, '|', make_patt(val{idx2}, regex_search)];
+%                     end
+%                 end
+%                 patt
+%                 if isempty(regexp(castto(obj.entities.(name), 'char'), patt, 'once'))
+%                     ismatch = false;
+%                     return
+%                 end
+%             end
+%             ismatch = true;
+        end
+ 
+        
+        
+       function ismatch = matches_e(obj, entities, regex_search)
+            %function ismatch = matches(obj, varargin)
+            % no input parameter checking with inputParser due to overhead
+            % fixed number of input arguments to limit overhead
+            %            tic
+            %             defaultsvals = {[], false};
+            %             defaultsval{1:nargin} = varargin;
+            
+            
+            %             if nargin
+            %                 entities = varargin{1};
+            %             else
+            %                 entities = [];
+            %             end
+            %
+            %             if nargin>=2
+            %                 regex_search = varargin{2};
+            %             else
+            %                 regex_search = false;
+            %             end
+%              disp('%%%%%%%%%%%%%%%%')
+%              entities
+%              obj.entities
             
             fns = fieldnames(entities);
             
@@ -241,15 +385,18 @@ classdef BIDSFile < matlab.mixin.Copyable
                         patt = [patt, '|', make_patt(val{idx2}, regex_search)];
                     end
                 end
-                patt
+                
                 if isempty(regexp(castto(obj.entities.(name), 'char'), patt, 'once'))
                     ismatch = false;
                     return
                 end
             end
             ismatch = true;
-        end
+       end
         
+       
+       
+       
         
         function copyfile(obj, path_patterns, varargin)
             % different name as in pybids to allow inheritance from

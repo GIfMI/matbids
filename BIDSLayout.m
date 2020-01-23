@@ -488,11 +488,13 @@ classdef BIDSLayout < handle
             results =  {};
             % Search on entities
             filters = ent_kwargs;
+       
+            
             
             for f = 1:numel(files)
                 f = files{f};
-%                if f.matches(filters, regex_search)
-                if f.matches(filters)
+                if f.matches(filters, regex_search)
+%                if f.matches(filters)
                     results{end+1} = f;
                 end
             end
@@ -543,7 +545,8 @@ classdef BIDSLayout < handle
                 %toc
                 %results = cellfun(@(x) obj.get_metadata(x.fpath), results, 'uni', false);
             elseif strcmp('file', return_type)
-                results = natsort(cellfun(@(x) x.fpath, results, 'uni', false));
+                %results = natsort(cellfun(@(x) x.fpath, results, 'uni', false));
+                results = cellfun(@(x) x.fpath, results, 'uni', false);
             elseif any(strcmp({'dir', 'id'}, return_type))
                 if isempty(target)
                     error(['If return_type is "id" or "dir", '...
@@ -555,7 +558,8 @@ classdef BIDSLayout < handle
                 if strcmp('id', return_type)
                     results = cellfun(@(x) x.entities.(target), results, 'uni', false);
                     results = unique_mixed(results);
-                    results = natsort(cellfun(@(x) castto(x, 'char'), results, 'uni', false));
+                    results = cellfun(@(x) castto(x, 'char'), results, 'uni', false);
+                    %results = natsort(cellfun(@(x) castto(x, 'char'), results, 'uni', false));
                 elseif strcmp('dir', return_type)
                     template = entities.(target).directory;
                     if isempty(template)
@@ -592,16 +596,16 @@ classdef BIDSLayout < handle
                     %   ffor f in results
                     %   iff re.search(template, f.dirname)
                     %   ]
-                    results = natsort(cellfun(@(x) castto(x, 'char'), results, 'uni', false));
+                    %results = natsort(cellfun(@(x) castto(x, 'char'), results, 'uni', false));
                 else
                     error(['Invalid return_type specified (must be one "', ...
                         'of "tuple", "file", "id", or "dir".'])
                 end
             else
-                [~, idx] = natsort(cellfun(@(x) x.fpath, results, 'uni', false));
-                results = results(find(idx));
+%                 [~, idx] =cellfun(@(x) x.fpath, results, 'uni', false);
+%                 %[~, idx] = natsort(cellfun(@(x) x.fpath, results, 'uni', false));
+%                 results = results(find(idx));
             end
-            
         end
         
         function ent = get_entity(obj, entity, varargin)
