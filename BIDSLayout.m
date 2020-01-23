@@ -412,7 +412,7 @@ classdef BIDSLayout < handle
             % 'acquisition' and 'mod' becomes 'modality'. Using the wrong version
             % could result in get() silently returning wrong or no results. See
             % the changelog for more details.
-            valid_types = {'object', 'file', 'dir', 'id'};
+            valid_types = {'object', 'file', 'dir', 'id', 'meta'};
             
             p = inputParser;
             p.KeepUnmatched = true;
@@ -491,52 +491,58 @@ classdef BIDSLayout < handle
             
             for f = 1:numel(files)
                 f = files{f};
-                if f.matches(filters, regex_search)
+%                if f.matches(filters, regex_search)
+                if f.matches(filters)
                     results{end+1} = f;
                 end
             end
             
             % Search on metadata
-            if ~any(strcmp({'dir', 'id'}, return_type))
-                if numel(fieldnames(md_kwargs))>0
-                    results = cellfun(@(x) x.fpath, results, 'uni', false);
-                    md_kwargs = reshape([fieldnames(md_kwargs) struct2cell(md_kwargs)]',2*numel(fieldnames(md_kwargs)), []);
-                    
-                    %results = obj.metadata_index.search('defined_fields', defined_fields, md_kwargs{:});
-                    results = obj.metadata_index.search('files', results, 'defined_fields', defined_fields, md_kwargs{:});
-                    
-                    fnames = cellfun(@(x) x.fpath, files, 'uni', false);
-                    
-                    for r_=1:numel(results)
-                        r = path_join(obj.root, results{r_});
-% % % % %                         r = results{r_};
-                        idx = find(cellfun(@(x) strcmp(r, x) , fnames));
+% %             if ~any(strcmp({'dir', 'id'}, return_type))
+% %                 if numel(fieldnames(md_kwargs))>0
+% %                     results = cellfun(@(x) x.fpath, results, 'uni', false);
+% %                     md_kwargs = reshape([fieldnames(md_kwargs) struct2cell(md_kwargs)]',2*numel(fieldnames(md_kwargs)), []);
+% %                     
+% %                     %results = obj.metadata_index.search('defined_fields', defined_fields, md_kwargs{:});
+% %                     %disp('index_file GET');
+% %                     results = obj.metadata_index.search('files', results, 'defined_fields', defined_fields, md_kwargs{:});
+% %                     
+% %                     fnames = cellfun(@(x) x.fpath, files, 'uni', false);
+% %                     
+% %                     for r_=1:numel(results)
+% %                         r = path_join(obj.root, results{r_});
+% % % % % % %                         r = results{r_};
+% %                         idx = find(cellfun(@(x) strcmp(r, x) , fnames));
+% % 
+% %                         results{r_} = files{idx};
+% %                         %results{r_} = files{idx}.bfile;
+% %                     end
+% %                 end
+% %             end
 
-                        results{r_} = files{idx};
-                        %results{r_} = files{idx}.bfile;
-                    end
-                end
-            end
-
-            % % Convert to relative paths if needed
-            if isempty(absolute_paths) % can be overloaded as option to .get
-                absolute_paths = obj.absolute_paths;
-            end
-            
-            if ~absolute_paths
-                i = 1;
-                for idx=1:numel(results)
-                    f = results{idx};
-                    f = copy(f); % deepcopy
-                    f.fpath = relativepath(f.fpath, obj.root);
-                    results{i} = f;
-                    i=i+1;
-                end
-            end
+% % % % %             % % Convert to relative paths if needed
+% % % % %             if isempty(absolute_paths) % can be overloaded as option to .get
+% % % % %                 absolute_paths = obj.absolute_paths;
+% % % % %             end
+% % % % %             
+% % % % %             if ~absolute_paths
+% % % % %                 i = 1;
+% % % % %                 for idx=1:numel(results)
+% % % % %                     f = results{idx};
+% % % % %                     f = copy(f); % deepcopy
+% % % % %                     f.fpath = relativepath(f.fpath, obj.root);
+% % % % %                     results{i} = f;
+% % % % %                     i=i+1;
+% % % % %                 end
+% % % % %             end
             %cellfun(@(x) disp(x.fpath), results);
             
-            
-            if strcmp('file', return_type)
+            if strcmp('meta', return_type)
+                %tic
+                results = cellfun(@(x) x.metadata(), results, 'uni', false);
+                %toc
+                %results = cellfun(@(x) obj.get_metadata(x.fpath), results, 'uni', false);
+            elseif strcmp('file', return_type)
                 results = natsort(cellfun(@(x) x.fpath, results, 'uni', false));
             elseif any(strcmp({'dir', 'id'}, return_type))
                 if isempty(target)
@@ -617,11 +623,11 @@ classdef BIDSLayout < handle
             end
         end
 
-        function results = get_metadata(obj, fpath, varargin)
+        function results = get_metadata(obj, f, varargin)
             %          """Return metadata found in JSON sidecars for the specified file.
             %
             %         Args:
-            %             path (str): Path to the file to get metadata for.
+            %             f (str, BIDSFile): Path to the file or BIDSFile object to get metadata for.
             %             include_entities (bool): If True, all available entities extracted
             %                 from the filename (rather than JSON sidecars) are included in
             %                 the returned metadata dictionary.
@@ -636,23 +642,23 @@ classdef BIDSLayout < handle
             %             files is returned. In cases where the same key is found in multiple
             %             files, the values in files closer to the input filename will take
             %             precedence, per the inheritance rules in the BIDS specification.
-            
             p = inputParser;
             
-            
-            addRequired(p, 'fpath',@(x)validateattributes(x,{'char'},{'nonempty'}));
+            addRequired(p, 'f',@(x)validateattributes(x,{'char', 'BIDSFile'},{'nonempty'}));
             addParameter(p, 'include_entities', false, @(x)validateattributes(x,{'logical', 'double'},{}));
             
-            parse(p, fpath, varargin{:})
+            parse(p, f, varargin{:})
             
-            fpath = p.Results.fpath;
+            f = p.Results.f;
             include_entities = p.Results.include_entities;
-            
-            f = obj.get_file(fpath);
-            
+
+            if ~isa(f, 'BIDSFile')
+                f = obj.get_file(f);
+            end
+
             % For querying efficiency, store metadata in the MetadataIndex cache
+            %disp('index_file GET_METADATA');
             obj.metadata_index.index_file(f.fpath);
-            
             
             if include_entities
                 entities = f.entities;
@@ -661,8 +667,8 @@ classdef BIDSLayout < handle
                 results = struct;
             end
             
-            idx = find(cellfun(@(x) strcmp(fpath, x.fpath) , obj.metadata_index.file_index));
-            md = obj.metadata_index.file_index{1}.md;
+            idx = find(cellfun(@(x) strcmp(f.fpath, x.bfile.fpath) , obj.metadata_index.file_index));
+            md = obj.metadata_index.file_index{idx}.md;
             
             results = update_struct(results, md);
         end
@@ -1092,7 +1098,7 @@ classdef BIDSLayout < handle
                 entities = entities.entities;
             end
             
-            fpath = obj.build_path(entities, 'path_patterns', path_patterns, 'strict', strict)
+            fpath = obj.build_path(entities, 'path_patterns', path_patterns, 'strict', strict);
             
             if isempty(fpath)
                 error(['Cannot construct any valid filename for ', ...

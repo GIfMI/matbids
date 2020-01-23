@@ -102,7 +102,6 @@ classdef BIDSFile < matlab.mixin.Copyable
             end
         end
         
-        
         function im = image(obj)
             % load image file
             obj.fpath;
@@ -110,11 +109,14 @@ classdef BIDSFile < matlab.mixin.Copyable
         end
         
         function my_metadata = metadata(obj)
-            try
                 my_metadata = obj.layout.get_metadata(obj);
-            catch
-                my_metadata = [];
-            end
+%             try
+%                 disp('trying')
+%                 my_metadata = obj.layout.get_metadata(obj);
+%             catch
+%                 disp('catching')
+%                 my_metadata = [];
+%             end
         end
         
         function my_layout = get.layout(obj)
@@ -124,9 +126,8 @@ classdef BIDSFile < matlab.mixin.Copyable
                 my_layout = [];
             end
         end
-        
-        
-        function ismatch = matches(obj, entities, regex_search)
+  
+        function ismatch = matches(obj, entities)
             %function ismatch = matches(obj, varargin)
             % no input parameter checking with inputParser due to overhead
             % fixed number of input arguments to limit overhead
@@ -146,6 +147,64 @@ classdef BIDSFile < matlab.mixin.Copyable
             %             else
             %                 regex_search = false;
             %             end
+              disp('%%%%%%%%%%%%%%%%')
+              entities
+              obj.entities
+            
+            fns = fieldnames(entities);
+            
+            if isempty(fns)
+                ismatch = true;
+                return
+            end
+            
+            %for i=fns' is slower than indexing
+            for idx=1:numel(fns)
+                name = fns{idx};
+                val = entities.(name);
+                
+                if xor(~isfield(obj.entities, name), isempty(val))
+                    ismatch = false;
+                    return
+                end
+                
+                if isempty(val)
+                    continue
+                end
+                
+                if ~strcmp(obj.entities.(name), entities.(name))
+                    ismatch = false;
+                    return
+                end
+            end
+            ismatch = true;
+        end
+        
+        
+        
+        function ismatch = matches_exact(obj, entities, regex_search)
+            %function ismatch = matches(obj, varargin)
+            % no input parameter checking with inputParser due to overhead
+            % fixed number of input arguments to limit overhead
+            %            tic
+            %             defaultsvals = {[], false};
+            %             defaultsval{1:nargin} = varargin;
+            
+            
+            %             if nargin
+            %                 entities = varargin{1};
+            %             else
+            %                 entities = [];
+            %             end
+            %
+            %             if nargin>=2
+            %                 regex_search = varargin{2};
+            %             else
+            %                 regex_search = false;
+            %             end
+             disp('%%%%%%%%%%%%%%%%')
+             entities
+             obj.entities
             
             fns = fieldnames(entities);
             
@@ -182,7 +241,7 @@ classdef BIDSFile < matlab.mixin.Copyable
                         patt = [patt, '|', make_patt(val{idx2}, regex_search)];
                     end
                 end
-                
+                patt
                 if isempty(regexp(castto(obj.entities.(name), 'char'), patt, 'once'))
                     ismatch = false;
                     return

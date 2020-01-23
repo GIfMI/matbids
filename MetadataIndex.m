@@ -27,7 +27,6 @@ classdef MetadataIndex < handle
             
             obj.layout = p.Results.layout;
         end
-        
         function index_file(obj, f, varargin)
             %function index_file(obj, f, overwrite)
             % Index metadata for the specified file.
@@ -45,22 +44,17 @@ classdef MetadataIndex < handle
             f = p.Results.f;
             overwrite = p.Results.overwrite;
             
+            % Get the BIDSFile object
             if ischar(f)
                 f = obj.layout.get_file(f);
             end
             
             % check if already indexed
-% % % % %             fpath = f.fpath;
-            if ~obj.layout.absolute_paths
-                fpath = relativepath(f.fpath, obj.layout.root);
-            else
-                fpath = f.fpath;
-            end
+
+            [fileidx_, ~] = ismember(obj.file_index_fnames, f.fpath);
             
-            [fileidx, ~] = ismember(obj.file_index_fnames, fpath);
-            
-            if any(fileidx) && ~ overwrite
-                disp('already indexed')
+            if any(fileidx_) && ~ overwrite
+                 disp('already indexed')
                 return
             end
             
@@ -70,15 +64,16 @@ classdef MetadataIndex < handle
             end
             
             % This should be a unique index
-            fileidx = find(fileidx);
+            fileidx = find(fileidx_);
             
-            md = obj.get_metadata_(fpath);
+            md = obj.get_metadata_(f.fpath);
             fns = fieldnames(md);
             
             for fnidx = 1:numel(fns)
                 md_key = fns{fnidx};
                 md_val = md.(md_key);
-                
+  
+                %{
                 if ~isfield(obj.key_index, md_key)
                     obj.key_index.(md_key) = struct;
                     idx = 1;
@@ -86,23 +81,33 @@ classdef MetadataIndex < handle
                     idx = numel(obj.key_index.(md_key)) + 1;
                 end
                 
-%                 if ~obj.layout.absolute_paths
-%                     fpath = relativepath(f.fpath, obj.layout.root);
-%                 else
-%                     fpath = f.fpath;
-%                 end
-                    
                 obj.key_index.(md_key)(idx).bfile =  f;
-                obj.key_index.(md_key)(idx).fpath =  fpath;
+                obj.key_index.(md_key)(idx).fpath =  f.fpath;
                 obj.key_index.(md_key)(idx).md_val =  md_val;
                 
+                %}
+                
+                % a little bit faster
+                %
+                if ~isfield(obj.key_index, md_key)
+                    obj.key_index.(md_key) = [];
+                end
+                
+                % create a seperate variable as the struct function expands
+                % input cells to create an array
+                addstruct.fpath = f.fpath;
+                addstruct.bfile = f;
+                addstruct.md_val = md_val;
+
+                obj.key_index.(md_key) =  [obj.key_index.(md_key), addstruct];
+                %}
                 if isempty(fileidx)
                     fileidx = numel(obj.file_index)+1;
                     str.bfile = f;
                     str.md.(md_key) = md_val;
                     
                     obj.file_index{fileidx} =  str;
-                    obj.file_index_fnames{fileidx} = fpath;
+                    obj.file_index_fnames{fileidx} = f.fpath;
                     
                 else
                     % found in file index, update md_key
@@ -111,6 +116,7 @@ classdef MetadataIndex < handle
             end
         end
         
+      
         
         function results = get_metadata_(obj, fpath, varargin)
             p = inputParser;
@@ -133,7 +139,8 @@ classdef MetadataIndex < handle
                 'return', 'file', ...
                 'all_', true, ...
                 'ignore_strict_entities', {'suffix'}, ...
-                'extension', 'json');
+                'extension', 'json', ...
+                'absolute_paths', true);
             results = struct;
             
             if isempty(potential_jsons)
@@ -149,13 +156,13 @@ classdef MetadataIndex < handle
                 % Adds a bit of overhead but is crucial
                 % json_file_path = path_join(obj.layout.root, json_file_path);
                 
-% % % % %                  json_file_path_full = json_file_path;
+                 json_file_path_full = json_file_path;
                  
-                if ~isabs(json_file_path)
-                    json_file_path_full = fullfile(obj.layout.root, json_file_path);
-                else
-                    json_file_path_full = json_file_path;
-                end
+% % % %                 if ~isabs(json_file_path)
+% % % %                     json_file_path_full = fullfile(obj.layout.root, json_file_path);
+% % % %                 else
+% % % %                     json_file_path_full = json_file_path;
+% % % %                 end
                 
                 if exist(json_file_path_full, 'file') == 2
                     % ADDED: caching of json data to avoid multiple
@@ -230,6 +237,7 @@ classdef MetadataIndex < handle
                 f = files{idx};
                 tic
                 %fprintf('Indexing metadata of %s \n', f);
+                disp('index_file SEARCH');
                 obj.index_file(f);
                 t(end+1) = toc;
                 %disp(t(end));
@@ -250,10 +258,10 @@ classdef MetadataIndex < handle
             
             matches = filesets; % same as pybids
             
-            if ~obj.layout.absolute_paths
-                files = cellfun(@(x) relativepath(x, obj.layout.root), files, 'uni', false);
-            end
-            
+%             if ~obj.layout.absolute_paths
+%                 files = cellfun(@(x) relativepath(x, obj.layout.root), files, 'uni', false);
+%             end
+%             
 
             if ~isempty(files)
                 matches = intersect(matches, files);
@@ -291,12 +299,12 @@ classdef MetadataIndex < handle
                 else
                     error('combination does not fit');
                 end
-                fprintf(' File: %s | key: %s | val: %s | fileval: %s', ff, key, mat2str(val), mat2str(f_val))
-                
-                if m
-                    fprintf(' | ++++');
-                end
-                fprintf('\n')
+%                 fprintf(' File: %s | key: %s | val: %s | fileval: %s', ff, key, mat2str(val), mat2str(f_val))
+%                 
+%                 if m
+%                     fprintf(' | ++++');
+%                 end
+%                 fprintf('\n')
             end
             
             % Serially check matches against each pattern, with early termination
